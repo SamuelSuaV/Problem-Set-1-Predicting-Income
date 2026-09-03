@@ -1,7 +1,7 @@
 ###############################################################################
 # Project Name:      Predicting Income
 # Script Name:       01_Web_Scrapping.r
-# Authors:           Maria Jose Perez, Juan Manuel Lozano, Samuel Suárez Valle
+# Authors:           Maria Jose Perez, Juan Manuel Lozano, Samuel Suárez 
 # Script Purpose:    This script scrapes income and covariables from
 #                    the GEIH, from the website:
 #                    https://ignaciomsarmiento.github.io/GEIH2018_sample/
@@ -35,7 +35,6 @@ p_load(
 
 
 ## 2. Scrape function
-
 income_url <- "https://ignaciomsarmiento.github.io/GEIH2018_sample/pages/"
 # Note: The webpage has no robots.txt.
 
@@ -51,26 +50,27 @@ scrape_function <- function(i) {
 
   url <- paste0(income_url, "geih_page_", i, ".html")
 
-  # Descargamos con httr::GET + timeout: read_html(url) hace su propia
-  # descarga SIN límite de tiempo y ahí es donde R se quedaba colgado.
   table <- httr::GET(url, httr::timeout(30)) |>
     httr::content(as = "text", encoding = "UTF-8") |>
     rvest::read_html() |>
     rvest::html_element("table") |>
     rvest::html_table()
 
+  # La primera columna es el índice de fila de la tabla HTML y viene sin
+  # nombre; la quitamos aquí.
+  table <- table[, names(table) != "", drop = FALSE]
+
   # La variable i identifica el subset de esta página.
   table$subset <- i
 
-  Sys.sleep(0.5)
+  Sys.sleep(5)
 
   table
 }
 
 
 ## 3. Scrapping
- 
-# Recorremos las 10 páginas y las apilamos en un for simple.
+# Recorremos las 10 páginas y las juntamos en un for simple.
 geih_completa <- data.frame()
 for (i in 1:10) {
   message("Scraping page ", i)
@@ -78,9 +78,10 @@ for (i in 1:10) {
 }
 
 ## 4. Organize and save data
-
-# Quitamos las columnas de índice de fila que arrastra el scraping
+# Quitamos las columnas de índice de fila que arrastra el scraping.
 geih_scrap <- geih_completa %>%
-  select(-"...1")
+  select(-"directorio")
 
 saveRDS(geih_scrap, file = "data/geih_scrap.rds")
+
+################################End of script###################################

@@ -11,6 +11,7 @@
 *.pdf
 *.html
 
-# Ignore all `.md` files, but keep the README.
+# Ignore all `.md` files, but keep the README and CLAUDE.md.
 *.md
 !README.md
+!CLAUDE.md

@@ -1,0 +1,111 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{float}
+\usepackage{hyperref}
+\usepackage{caption}
+
+\hypersetup{colorlinks=true, linkcolor=blue, citecolor=blue, urlcolor=blue}
+
+\title{Predicting Income \\ \large Data Description and Exploratory Output}
+\author{Maria Jose Perez \and Juan Manuel Lozano \and Samuel Suárez Valle}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+\newpage
+
+\section{Data and Sample}
+
+The analysis sample comes from the 2018 GEIH, scraped in \texttt{01\_Web\_Scrapping.r} and
+cleaned in \texttt{02\_Data\_Cleaning.r}, which restricts the data to employed adults
+(\texttt{age >= 18} and \texttt{ocu == 1}). The outcome variable, \texttt{y\_total\_m}
+(total monthly labor income), is missing for a subset of observations; \autoref{tab:balance}
+compares observations with and without \texttt{y\_total\_m} to characterize this
+missingness.
+
+\input{../output/tables/balance_table.tex}
+
+\section{General Descriptive Statistics}
+
+\autoref{tab:general-continuous} and \autoref{tab:general-categorical} summarize the
+key variables for the full analysis sample: age, usual weekly hours worked, total
+monthly income, sex, maximum education level, and formality.
+
+\input{../output/tables/general_continuous.tex}
+
+\input{../output/tables/general_categorical.tex}
+
+\section{Descriptive Statistics by Group}
+
+\subsection{By Sex}
+
+\input{../output/tables/by_sex_continuous.tex}
+
+\input{../output/tables/by_sex_categorical.tex}
+
+\subsection{By Age Range}
+
+\input{../output/tables/by_age_continuous.tex}
+
+\input{../output/tables/by_age_categorical.tex}
+
+\subsection{By Formality}
+
+\input{../output/tables/by_formal_continuous.tex}
+
+\input{../output/tables/by_formal_categorical.tex}
+
+\section{Income Distribution by Group}
+
+Each figure below overlays the log-income distribution of a group (semi-transparent)
+on top of the overall sample distribution (``Total''), with a dashed vertical line at
+each group's mean.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.85\textwidth]{../output/figures/income_dist_sex.png}
+  \caption{Income distribution by sex}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.85\textwidth]{../output/figures/income_dist_age.png}
+  \caption{Income distribution by age range}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.85\textwidth]{../output/figures/income_dist_formal.png}
+  \caption{Income distribution by formality}
+\end{figure}
+
+\section{Income vs. Age by Group}
+
+Each figure below plots log total monthly income against age, with a separate
+fitted straight line (OLS) for each group.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.85\textwidth]{../output/figures/scatter_income_age_sex.png}
+  \caption{Income vs. age by sex}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.85\textwidth]{../output/figures/scatter_income_age_educ.png}
+  \caption{Income vs. age by education level}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.85\textwidth]{../output/figures/scatter_income_age_formal.png}
+  \caption{Income vs. age by formality}
+\end{figure}
+
+\end{document}

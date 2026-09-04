@@ -71,17 +71,13 @@ scrape_function <- function(i) {
 
 ## 3. Scrapping
 # Recorremos las 10 páginas y las juntamos en un for simple.
-geih_completa <- data.frame()
+geih_scrap <- data.frame()
 for (i in 1:10) {
   message("Scraping page ", i)
-  geih_completa <- rbind(geih_completa, scrape_function(i))
+  geih_scrap <- rbind(geih_scrap, scrape_function(i))
 }
 
-## 4. Organize and save data
-# Quitamos las columnas de índice de fila que arrastra el scraping.
-geih_scrap <- geih_completa %>%
-  select(-"directorio")
-
+## 4. Save data
 saveRDS(geih_scrap, file = "data/geih_scrap.rds")
 
 ################################End of script###################################

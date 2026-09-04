@@ -1,8 +1,0 @@
-\contentsline {section}{\numberline {1}Data and Sample}{2}{section.1}%
-\contentsline {section}{\numberline {2}General Descriptive Statistics}{2}{section.2}%
-\contentsline {section}{\numberline {3}Descriptive Statistics by Group}{3}{section.3}%
-\contentsline {subsection}{\numberline {3.1}By Sex}{3}{subsection.3.1}%
-\contentsline {subsection}{\numberline {3.2}By Age Range}{3}{subsection.3.2}%
-\contentsline {subsection}{\numberline {3.3}By Formality}{4}{subsection.3.3}%
-\contentsline {section}{\numberline {4}Income Distribution by Group}{4}{section.4}%
-\contentsline {section}{\numberline {5}Income vs. Age by Group}{7}{section.5}%

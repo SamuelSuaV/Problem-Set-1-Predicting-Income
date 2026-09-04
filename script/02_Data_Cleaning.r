@@ -12,7 +12,7 @@
 # 3. Filter and select variables
 # 4. Handle missing values
 # 6. Handle outliers
-# 5. Save clean data
+# 7. Save clean data
 
 ################################################################################
 
@@ -31,9 +31,6 @@ p_load(
   broom,      # Tidy statistical test output.
   kableExtra  # Export tables to LaTeX.
 )
-
-# Why use srvyr?
-# Uses sandwich estimators to scale uncertainty back to the actual sample size.
 
 
 ## 2. Load data
@@ -68,6 +65,8 @@ geih_clean <- geih_clean %>% select(-all_of(cols_to_remove))
 # p7422 - Income earned from work in last month (for unemployed)?
 # p7422s1 - How much (replying to p7422)
 # y_gananciaNetaAgro_m - Net income from agric. activities in last 12 months
+
+# These columns would have been irrelevant for our analysis even w.o missings
 
 # Now we extract the missings in vars of special interest
 vars_of_interest <- c(
@@ -153,7 +152,6 @@ balance_table <- bind_rows(
   ttest_age,
   ttest_categorical(geih_clean, "sex"),
   ttest_categorical(geih_clean, "maxEducLevel"),
-  ttest_categorical(geih_clean, "relab"),
   ttest_categorical(geih_clean, "formal")
 ) %>%
   rename(
@@ -175,7 +173,6 @@ balance_table
 # (54) are almost all sex == 0, drivers (98) almost all sex == 1.
 sex_labels <- c("0" = "Female", "1" = "Male")
 
-# Source: maxEducLevel codebook (Categorias.pdf)
 educ_labels <- c(
   "1" = "None",
   "2" = "Preschool",
@@ -187,19 +184,6 @@ educ_labels <- c(
   "9" = "N/A"
 )
 
-# Source: relab codebook (Categorias.pdf)
-relab_labels <- c(
-  "1" = "Private employee",
-  "2" = "Government employee",
-  "3" = "Domestic worker",
-  "4" = "Self-employed",
-  "5" = "Employer",
-  "6" = "Unpaid family worker",
-  "7" = "Unpaid worker (other household)",
-  "8" = "Day laborer",
-  "9" = "Other"
-)
-
 formal_labels <- c("0" = "Informal", "1" = "Formal")
 
 balance_table <- balance_table %>%
@@ -207,7 +191,6 @@ balance_table <- balance_table %>%
     variable == "age"          ~ "Age",
     variable == "sex"          ~ sex_labels[category],
     variable == "maxEducLevel" ~ educ_labels[category],
-    variable == "relab"        ~ relab_labels[category],
     variable == "formal"       ~ formal_labels[category],
     TRUE                       ~ category
   )) %>%
@@ -216,6 +199,13 @@ balance_table <- balance_table %>%
 balance_table
 
 # h. Export the balance table to LaTeX
+# force_float_h swaps kableExtra's [!h] hint for a hard [H] (requires
+# \usepackage{float} in the including .tex), so a table can't float past its
+# own section into later ones.
+force_float_h <- function(x) {
+  sub("\\\\begin\\{table\\}\\[!h\\]", "\\\\begin{table}[H]", x)
+}
+
 balance_table_tex <- balance_table %>%
   rename(
     Variable = variable,
@@ -227,23 +217,25 @@ balance_table_tex <- balance_table %>%
     caption = "Balance table: missing vs. non-missing income",
     label = "balance"
   ) %>%
-  kable_styling(latex_options = c("hold_position", "scale_down"))
+  kable_styling(latex_options = c("hold_position", "scale_down")) %>%
+  as.character() %>%
+  force_float_h()
 
-writeLines(as.character(balance_table_tex), "output/tables/balance_table.tex")
+writeLines(balance_table_tex, "output/tables/balance_table.tex")
 
 # i. Characterizing the missing-income group by employment relationship
 # With the sample restricted to occupied adults (ocu == 1), missing y_total_m
 # is concentrated among workers without a fixed wage: unpaid family/other-
 # household workers (relab 6-7) are almost never in the non-missing group,
 # and self-employed, employer and informal workers are all over-represented
-# among the missing (see balance_table rows above).
+# among the missing (see relab_pct/formal_pct below).
 relab_pct  <- pct_by_group(geih_clean, "relab")
 formal_pct <- pct_by_group(geih_clean, "formal")
 
 relab_pct
 formal_pct
 
-## 5. Save clean data
+## 7. Save clean data
 
 # geih_clean is exported as-is: missing values (e.g. y_total_m) are left
 # untouched here, not dropped or imputed.

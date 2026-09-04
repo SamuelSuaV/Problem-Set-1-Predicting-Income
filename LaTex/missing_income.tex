@@ -1,0 +1,100 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage{hyperref}
+\usepackage{caption}
+
+\hypersetup{colorlinks=true, linkcolor=blue, citecolor=blue, urlcolor=blue}
+
+\title{Characterizing Missing Income}
+\author{Maria Jose Perez \and Juan Manuel Lozano \and Samuel Suárez Valle}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\noindent
+The outcome variable, \texttt{y\_total\_m} (total monthly labor income), is missing for
+1{,}778 of the 16{,}542 respondents in the analysis sample built in
+\texttt{02\_Data\_Cleaning.r}. This document characterizes who these respondents are and
+what that implies for handling the missingness in the rest of the analysis.
+
+\section{Sample and a Filter Correction}
+
+The analysis sample restricts the raw GEIH scrape to employed adults. An earlier version
+of the filter used \texttt{dsi == 0} to mean ``employed,'' which looked reasonable but
+was not equivalent: it let through 6{,}098 economically inactive respondents
+(\texttt{ocu == 0}, \texttt{inac == 1}) --- respondents with no job to have missing income
+\emph{from}. Under that filter, 77\% of the ``missing income'' group was simply the wrong
+population, not a data problem.
+
+Switching the filter to \texttt{age >= 18 \&\ ocu == 1} (occupied adults) drops the sample
+from 22{,}640 to 16{,}542 rows and the missing-income rate from 34.8\% to
+\textbf{10.75\%}. Every remaining row now has a full set of employment-module variables
+(\texttt{relab}, \texttt{formal}, \texttt{sizeFirm}) --- the missingness left is a genuine
+reporting pattern, not a sample-scope artifact.
+
+\section{Demographic Balance}
+
+\autoref{tab:balance} compares observations with and without \texttt{y\_total\_m} on age,
+sex and education using two-sample t-tests. Age shows the clearest gap: respondents
+missing income are on average 5 years older (44.0 vs.\ 38.9). The missing group is
+somewhat less educated --- under-represented at ``secondary complete'' and over-represented
+at ``none'' and ``primary incomplete'' --- and slightly more male (55.8\% vs.\ 52.7\%),
+though both differences are small next to the pattern in \autoref{sec:relab}.
+
+\input{../output/tables/balance_table.tex}
+
+\section{Employment Relationship}
+\label{sec:relab}
+
+The clearest driver of missingness is \texttt{relab}, the respondent's relationship to
+their job. Standard salaried employment (``private employee'') makes up 59.3\% of
+respondents with reported income but only 32.9\% of those missing it; self-employment and
+business ownership run in the opposite direction (\autoref{tab:balance}).
+\autoref{tab:relab-missing-rate} restates this as a rate rather than a composition: the
+share of \emph{each} employment-relationship category that is itself missing income.
+
+\input{../output/tables/relab_missing_rate.tex}
+
+Unpaid family workers and unpaid workers in another household's business are missing
+income for 100\% of respondents in those categories --- by construction, neither receives
+a wage, so a missing \texttt{y\_total\_m} is the expected value for them, not
+non-response. Self-employment (14.0\%) and, especially, employer/business-owner status
+(24.4\%) show meaningfully elevated but far-from-total missingness, consistent with
+income under-reporting rather than the absence of any income to report.
+
+\section{Formality}
+
+Consistent with the employment-relationship pattern, the missing-income group is more
+informal: 45.7\% of respondents missing income are formal, versus 60.2\% of respondents
+with reported income (\autoref{tab:balance}).
+
+\section{Implications for Modeling}
+
+Age, education and employment relationship are all observed variables. If an income
+model already conditions on them, missingness can be treated as \textbf{missing at
+random conditional on X}: dropping missing rows still identifies $E[Y \mid X]$, since
+whatever predicts missingness is already in the model. This can be checked directly by
+regressing an indicator for missingness on age, education and \texttt{relab} and
+reporting how much of the variation it explains.
+
+Where that defense is insufficient, two alternatives follow the same logic:
+
+\begin{itemize}
+  \item \textbf{Inverse-probability weighting} --- reweight observed rows by the inverse
+  of their estimated probability of being observed (from the probit above), so the
+  estimation sample looks like the full population again.
+  \item \textbf{Multiple imputation} --- keep the full $n = 16{,}542$ rather than
+  dropping 1{,}778 rows, at the cost of an explicit imputation-model assumption.
+\end{itemize}
+
+The two structurally-zero categories --- unpaid family and other-household workers --- are
+a special case better handled on their own terms: their missing income reflects an
+absent wage, not uncertainty to resolve.
+
+\end{document}

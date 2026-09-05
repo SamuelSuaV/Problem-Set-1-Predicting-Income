@@ -229,7 +229,25 @@ writeLines(balance_table_tex, "output/tables/balance_table.tex")
 # household workers (relab 6-7) are almost never in the non-missing group,
 # and self-employed, employer and informal workers are all over-represented
 # among the missing (see relab_pct/formal_pct below).
+
+
+relab_labels <- c(
+  "1" = "Obrero o empleado de empresa particular",
+  "2" = "Obrero o empleado del gobierno",
+  "3" = "Empleado doméstico",
+  "4" = "Trabajador por cuenta propia",
+  "5" = "Patrón o empleador",
+  "6" = "Trabajador familiar sin remuneración",
+  "7" = "Trabajador sin remuneración en empresas o negocios de otros hogares",
+  "8" = "Jornalero o peón",
+  "9" = "Otro"
+)
+ 
+##### mirar si tambien se actualiza la tabla de porcentajes
 relab_pct  <- pct_by_group(geih_clean, "relab")
+# Pendiente confirmar con el equipo si aplicamos las etiquetas de texto aquí:
+# relab_pct <- pct_by_group(geih_clean, "relab") |>
+#   mutate(relab = relab_labels[as.character(relab)])
 formal_pct <- pct_by_group(geih_clean, "formal")
 
 relab_pct

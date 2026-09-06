@@ -1,0 +1,44 @@
+% Beamer frame: Section 3 winning specification (gap_hours from 05_Gender_Gap.r),
+% selected by validation RMSE among the ten models compared in
+% 07_income_prediction_validation.r, trained on subset 1-7.
+% Requires \usepackage{booktabs} in the deck's preamble; \input{} this file
+% from within \begin{document}...\end{document} of a beamer presentation.
+
+\begin{frame}{Mejor modelo: brecha de género con capital humano y horas}
+    \footnotesize
+    Seleccionado por RMSE de validación entre 10 especificaciones (Sección 3), entrenado en \texttt{subset} 1--7:
+
+    \[
+        \widehat{\log(w_i)} = 10.6684 - 0.2200\,\mathrm{female}_i + 0.0721\,\mathrm{age}_i
+        - 0.0008\,\mathrm{age}_i^2 + 0.0176\,\mathrm{hours}_i
+        + \sum_{k=3}^{7} \beta_k D_{k,i}
+    \]
+    donde $D_{k,i}=1$ si el nivel educativo máximo del individuo $i$ es $k$ (0 en otro caso; la categoría base es el nivel 1, sin educación).
+
+    \vspace{0.3cm}
+    \begin{columns}[T]
+        \begin{column}{0.45\textwidth}
+            \centering
+            \begin{tabular}{lr}
+                \toprule
+                Nivel educativo & $\beta_k$ \\
+                \midrule
+                3 -- Primaria inc.    & 0.3318 \\
+                4 -- Primaria comp.   & 0.4286 \\
+                5 -- Secundaria inc.  & 0.5181 \\
+                6 -- Secundaria comp. & 0.7494 \\
+                7 -- Terciaria        & 1.4515 \\
+                \bottomrule
+            \end{tabular}
+        \end{column}
+        \begin{column}{0.55\textwidth}
+            \begin{itemize}
+                \item Brecha de género: $\exp(-0.2200)-1 \approx -20.3\%$
+                \item Edad pico $\approx 46.8$ años ($-\beta_{\mathrm{age}}/2\beta_{\mathrm{age}^2}$)
+                \item $+1.78\%$ de ingreso por hora adicional trabajada al mes
+                \item Retorno a educación: $+145\%$ terciaria vs.\ sin educación
+                \item Todos los coeficientes significativos al $0.1\%$
+            \end{itemize}
+        \end{column}
+    \end{columns}
+\end{frame}

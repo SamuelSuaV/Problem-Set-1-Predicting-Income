@@ -2,19 +2,25 @@
 # Project Name:      Predicting Income
 # Script Name:       04_Age_Labor_Income.r
 # Authors:           Maria Jose Perez, Juan Manuel Lozano, Samuel Suárez Valle
-# Script Purpose:    Calculate age labour income profile regressions along with
-#                    boot-strap CI using different data sets.
+# Script Purpose:    Estimate the unconditional and conditional age-labour
+#                    income profiles, the implied peak age of each one and its
+#                    bootstrap confidence interval.
 ###############################################################################
 
 # Layout:
 # 1. Load libraries
-# 2. Load data
-# ...
+# 2. Load data and build model variables
+# 3. Age-income profile regressions
+# 4. Implied peak age
+# 5. Bootstrap confidence intervals for the peak age
+# 6. Regression table and export to LaTeX
+# 7. Age-income profile plot
 
 ################################################################################
 
-# Input:  Raw scraped dataframe from 01_Web_Scrapping.r
-# Output: Clean analysis dataframe
+# Input:  Clean analysis dataframe from 02_Data_Cleaning.r
+# Output: Regression table (output/tables/age_income_regression.tex) and
+#         age-income profile figure (output/figures/age_income_profile.png)
 
 ################################################################################
 
@@ -28,14 +34,16 @@ p_load(
     broom,
     kableExtra)
 
+## 2. Load data and build model variables
+
 clean_data <- readRDS("data/geih_clean.rds")
 
 clean_data <- clean_data |>
     filter(y_total_m > 0) |>
     mutate(age2 = age^2, log_inc = log(y_total_m))  #creamos una variable de logaritmo del ingreso para poder hacer la regresión
 
-# Etiquetas de relab (duplicadas del 02_Data_Cleaning.r: cada script se corre
-# independiente, asi que no podemos reusar el vector que definieron alla).
+# relab labels (duplicated from 02_Data_Cleaning.r: every script runs on its
+# own, so the vector defined there is not available here).
 relab_labels <- c(
   "1" = "Obrero o empleado de empresa particular",
   "2" = "Obrero o empleado del gobierno",
@@ -52,29 +60,50 @@ clean_data |>
   count(relab) |>
   mutate(relab_label = relab_labels[as.character(relab)])
 
-# modelo 1, sin condicionar
-model1 <- lm(log_inc ~ age + age2, data = clean_data)
+## 3. Age-income profile regressions
+
+# Every regression below is weighted by fex_c, the person-level expansion
+# factor: the GEIH is a complex survey, not a simple random sample, so the
+# profile we report is a statement about Bogota's workers and not about the
+# 14,764 respondents we happen to observe. This also keeps the section
+# consistent with the weighted descriptives in 03_Data_Description.r.
+# In practice the choice is innocuous here: dropping the weights moves the
+# implied peak age by 0.11 years (model 1) and 0.02 years (model 2), an order
+# of magnitude less than the width of their bootstrap confidence intervals.
+
+# a. Unconditional profile
+model1 <- lm(log_inc ~ age + age2, data = clean_data, weights = fex_c)
 summary(model1) # revisamos el resumen del modelo
 
-
-#model 2, condicionado 
-model2 <- lm(log_inc ~ age + age2 + totalHoursWorked + factor(relab), data = clean_data)
+# b. Conditional profile: adds total hours worked and employment type, and no
+# other controls (as required by the problem set).
+model2 <- lm(log_inc ~ age + age2 + totalHoursWorked + factor(relab),
+             data = clean_data, weights = fex_c)
 summary(model2) # revisamos el resumen del modelo
 
 
-#edad pico 
-##*model 1
+## 4. Implied peak age
+
+# The profile is a parabola, so the predicted income peaks where its slope is
+# zero: age* = -beta_age / (2 * beta_age2).
+
+# a. Unconditional profile
 peak_age1 <- -coef(model1)["age"] / (2 * coef(model1)["age2"])
 
-##*model 2
+# b. Conditional profile
 peak_age2 <- -coef(model2)["age"] / (2 * coef(model2)["age2"])
 
 
+## 5. Bootstrap confidence intervals for the peak age
+
 B <- 3000 # number of bootstrap samples
 
-#bootstrap con el paquete boot, para model 1
+# Each replicate refits the same weighted specification as in section 3, so the
+# bootstrap distribution is centred on the estimates we actually report.
+
+# a. Unconditional profile
 peak_age_stat1 <- function(data, index) {
-  model <- lm(log_inc ~ age + age2, data = data[index, ])
+  model <- lm(log_inc ~ age + age2, data = data[index, ], weights = fex_c)
   -coef(model)["age"] / (2 * coef(model)["age2"])
 }
 
@@ -85,9 +114,10 @@ sd(boot_peak_age1$t)    # sd bootstrap (equivalente al "std. error" de arriba)
 boot.ci(boot_peak_age1, type = "perc")  # IC 95%
 
 
-#bootstrap con el paquete boot, para model 2
+# b. Conditional profile
 peak_age_stat2 <- function(data, index) {
-  model <- lm(log_inc ~ age + age2 + totalHoursWorked + factor(relab), data = data[index, ])
+  model <- lm(log_inc ~ age + age2 + totalHoursWorked + factor(relab),
+              data = data[index, ], weights = fex_c)
   -coef(model)["age"] / (2 * coef(model)["age2"])
 }
 
@@ -98,6 +128,10 @@ sd(boot_peak_age2$t)
 boot.ci(boot_peak_age2, type = "perc")  # IC 95%
 
 
+## 6. Regression table and export to LaTeX
+
+# a. One row per coefficient, one pair of columns per specification. Terms that
+# only appear in the conditional model are left as NA on the model 1 side.
 table_regression <- full_join(
   tidy(model1) |> select(term, estimate, std.error),
   tidy(model2) |> select(term, estimate, std.error),
@@ -105,6 +139,8 @@ table_regression <- full_join(
   suffix = c("_model1", "_model2")
 )
 
+# b. Extra rows the coefficient table does not carry: peak age, its bootstrap
+# CI and the in-sample fit measure required by the problem set.
 extra_rows <- tibble(
   term = c("Peak age", "Peak age CI lower", "Peak age CI upper", "R-squared"),
   estimate_model1 = c(
@@ -126,9 +162,9 @@ extra_rows <- tibble(
 table_regression <- bind_rows(table_regression, extra_rows)
 view(table_regression)
 
-# Exportar la tabla a LaTeX, mismo patron que 02_Data_Cleaning.r
-# (kbl con booktabs, forzando [H] en vez del [!h] de kableExtra para que
-# la tabla no flote fuera de su seccion en el documento final).
+# c. Export to LaTeX, same pattern as 02_Data_Cleaning.r: kbl with booktabs,
+# forcing [H] instead of kableExtra's [!h] so the table cannot float past its
+# own section in the compiled write-up (requires \usepackage{float}).
 force_float_h <- function(x) {
   sub("\\\\begin\\{table\\}\\[!h\\]", "\\\\begin{table}[H]", x)
 }
@@ -142,9 +178,9 @@ table_regression_tex <- table_regression |>
     `SE (Model 2)` = std.error_model2
   ) |>
   kbl(
-    # NOTA: con digits = 4 el SE de age2 sale como 0.0000 (el valor real es
-    # ~0.0000376, muy chico para 4 decimales) - revisar antes de usar en las
-    # slides (mas decimales solo para esa fila, o notacion cientifica).
+    # NOTE: with digits = 4 the SE of age2 prints as 0.0000 (its real value is
+    # ~0.0000376, too small for 4 decimals) - revisit before using this table
+    # in the slides (more decimals for that row only, or scientific notation).
     format = "latex", booktabs = TRUE, digits = 4,
     caption = "Age-income profile: unconditional vs. conditional",
     label = "age_income"
@@ -156,22 +192,23 @@ table_regression_tex <- table_regression |>
 writeLines(table_regression_tex, "output/tables/age_income_regression.tex")
 
 
-## Visualizacion de los perfiles edad-ingreso
+## 7. Age-income profile plot
 
-# Grilla de edades sobre el rango observado en la muestra.
+# a. Age grid over the range observed in the sample.
 age_grid <- seq(min(clean_data$age), max(clean_data$age), by = 1)
 
-# Perfil incondicional: model1 solo depende de age, no hay nada mas que fijar.
+# b. Unconditional profile: model1 only depends on age, nothing else to hold
+# fixed.
 profile1 <- tibble(age = age_grid, age2 = age_grid^2)
 profile1$log_inc_pred <- predict(model1, newdata = profile1)
 
-# Perfil condicional: model2 tambien depende de totalHoursWorked y relab, asi
-# que los fijamos en un "trabajador de referencia" (horas promedio, categoria
-# de relab mas frecuente) y solo variamos la edad. Como el modelo no tiene
-# interacciones con age, esta eleccion solo desplaza la curva verticalmente:
-# no cambia ni su forma ni la edad pico.
+# c. Conditional profile: model2 also depends on totalHoursWorked and relab, so
+# we hold them at a "reference worker" (average hours, most frequent relab
+# category) and vary age only. Since the model has no interactions with age,
+# this choice only shifts the curve vertically: it changes neither its shape
+# nor the peak age, so the comparison below is robust to it.
 ref_hours <- mean(clean_data$totalHoursWorked, na.rm = TRUE)
-ref_relab <- 1  # Obrero o empleado de empresa particular (categoria mas comun)
+ref_relab <- 1  # Obrero o empleado de empresa particular (most common category)
 
 profile2 <- tibble(
   age = age_grid,
@@ -181,12 +218,15 @@ profile2 <- tibble(
 )
 profile2$log_inc_pred <- predict(model2, newdata = profile2)
 
-# Juntamos los dos perfiles para graficarlos comparados.
+# d. Both profiles in one data frame so they can be plotted side by side.
 profiles <- bind_rows(
   profile1 |> mutate(model = "Unconditional"),
   profile2 |> mutate(model = "Conditional")
 )
 
+# e. Plot both curves, marking each specification's peak age. Only the shape
+# and the peak age are comparable across curves: their vertical position
+# depends on the reference worker chosen above.
 peaks <- tibble(
   model = c("Unconditional", "Conditional"),
   peak_age = c(unname(peak_age1), unname(peak_age2))

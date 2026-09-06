@@ -1,0 +1,28 @@
+\begin{table}[H]
+\centering
+\caption{\label{tab:age_income}Age-income profile: unconditional vs. conditional}
+\centering
+\resizebox{\ifdim\width>\linewidth\linewidth\else\width\fi}{!}{
+\begin{tabular}[t]{lrrrr}
+\toprule
+Term & Model 1 & SE (Model 1) & Model 2 & SE (Model 2)\\
+\midrule
+(Intercept) & 12.3545 & 0.0636 & 12.0231 & 0.0595\\
+age & 0.0835 & 0.0032 & 0.0698 & 0.0029\\
+age2 & -0.0010 & 0.0000 & -0.0008 & 0.0000\\
+totalHoursWorked & NA & NA & 0.0130 & 0.0004\\
+factor(relab)2 & NA & NA & 0.7558 & 0.0343\\
+\addlinespace
+factor(relab)3 & NA & NA & -0.6937 & 0.0349\\
+factor(relab)4 & NA & NA & -0.4867 & 0.0153\\
+factor(relab)5 & NA & NA & 0.2269 & 0.0378\\
+factor(relab)8 & NA & NA & -0.6556 & 0.7890\\
+factor(relab)9 & NA & NA & -1.1815 & 0.2792\\
+\addlinespace
+Peak age & 40.6178 & NA & 43.6078 & NA\\
+Peak age CI lower & 40.0753 & NA & 42.8409 & NA\\
+Peak age CI upper & 41.1828 & NA & 44.4307 & NA\\
+R-squared & 0.0500 & NA & 0.2264 & NA\\
+\bottomrule
+\end{tabular}}
+\end{table}

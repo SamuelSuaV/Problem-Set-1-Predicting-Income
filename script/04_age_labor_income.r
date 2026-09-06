@@ -24,7 +24,9 @@
 library(pacman)
 p_load(
     tidyverse,
-    boot)
+    boot,
+    broom,
+    kableExtra)
 
 clean_data <- readRDS("data/geih_clean.rds")
 
@@ -68,37 +70,145 @@ peak_age1 <- -coef(model1)["age"] / (2 * coef(model1)["age2"])
 peak_age2 <- -coef(model2)["age"] / (2 * coef(model2)["age2"])
 
 
-#bootstrap function for model 1
-set.seed(123) # for reproducibility
 B <- 3000 # number of bootstrap samples
-bootstrap_peak_age1 <- rep(NA,B)
 
-for(i in 1:B){
-  sample_data <- clean_data |> sample_frac(1, replace = TRUE) # bootstrap sample
-    model <- lm(log_inc ~ age + age2, data = sample_data) # fit model
-    bootstrap_peak_age1[i] <- -coef(model)["age"] / (2 * coef(model)["age2"]) # calculate peak age
-  }
+#bootstrap con el paquete boot, para model 1
+peak_age_stat1 <- function(data, index) {
+  model <- lm(log_inc ~ age + age2, data = data[index, ])
+  -coef(model)["age"] / (2 * coef(model)["age2"])
+}
 
-
-mean(bootstrap_peak_age1) #mean  = 40.61685
-sd(bootstrap_peak_age1) #sd bootstrap 0.2743336
-quantile(bootstrap_peak_age1, c(0.025, 0.975))  # IC 95%
-
-
-#bootstrap function for model 2
 set.seed(123) # for reproducibility
-bootstrap_peak_age2 <- rep(NA,B)
-
-for(i in 1:B){
-  sample_data <- clean_data |> sample_frac(1, replace = TRUE) # bootstrap sample
-    model <- lm(log_inc ~ age + age2 + totalHoursWorked + factor(relab), data = sample_data) # fit model
-    bootstrap_peak_age2[i] <- -coef(model)["age"] / (2 * coef(model)["age2"]) # calculate peak age
-  }
+boot_peak_age1 <- boot(clean_data, peak_age_stat1, R = B)
+boot_peak_age1          # original, bias y std. error bootstrap
+sd(boot_peak_age1$t)    # sd bootstrap (equivalente al "std. error" de arriba)
+boot.ci(boot_peak_age1, type = "perc")  # IC 95%
 
 
-mean(bootstrap_peak_age2)
-sd(bootstrap_peak_age2)
-quantile(bootstrap_peak_age2, c(0.025, 0.975))  # IC 95%
+#bootstrap con el paquete boot, para model 2
+peak_age_stat2 <- function(data, index) {
+  model <- lm(log_inc ~ age + age2 + totalHoursWorked + factor(relab), data = data[index, ])
+  -coef(model)["age"] / (2 * coef(model)["age2"])
+}
+
+set.seed(123) # for reproducibility
+boot_peak_age2 <- boot(clean_data, peak_age_stat2, R = B)
+boot_peak_age2
+sd(boot_peak_age2$t)
+boot.ci(boot_peak_age2, type = "perc")  # IC 95%
 
 
+table_regression <- full_join(
+  tidy(model1) |> select(term, estimate, std.error),
+  tidy(model2) |> select(term, estimate, std.error),
+  by = "term",
+  suffix = c("_model1", "_model2")
+)
 
+extra_rows <- tibble(
+  term = c("Peak age", "Peak age CI lower", "Peak age CI upper", "R-squared"),
+  estimate_model1 = c(
+    peak_age1,
+    boot.ci(boot_peak_age1, type = "perc")$percent[4],
+    boot.ci(boot_peak_age1, type = "perc")$percent[5],
+    glance(model1)$r.squared
+  ),
+  std.error_model1 = NA_real_,
+  estimate_model2 = c(
+    peak_age2,
+    boot.ci(boot_peak_age2, type = "perc")$percent[4],
+    boot.ci(boot_peak_age2, type = "perc")$percent[5],
+    glance(model2)$r.squared
+  ),
+  std.error_model2 = NA_real_
+)
+
+table_regression <- bind_rows(table_regression, extra_rows)
+view(table_regression)
+
+# Exportar la tabla a LaTeX, mismo patron que 02_Data_Cleaning.r
+# (kbl con booktabs, forzando [H] en vez del [!h] de kableExtra para que
+# la tabla no flote fuera de su seccion en el documento final).
+force_float_h <- function(x) {
+  sub("\\\\begin\\{table\\}\\[!h\\]", "\\\\begin{table}[H]", x)
+}
+
+table_regression_tex <- table_regression |>
+  rename(
+    Term = term,
+    `Model 1` = estimate_model1,
+    `SE (Model 1)` = std.error_model1,
+    `Model 2` = estimate_model2,
+    `SE (Model 2)` = std.error_model2
+  ) |>
+  kbl(
+    # NOTA: con digits = 4 el SE de age2 sale como 0.0000 (el valor real es
+    # ~0.0000376, muy chico para 4 decimales) - revisar antes de usar en las
+    # slides (mas decimales solo para esa fila, o notacion cientifica).
+    format = "latex", booktabs = TRUE, digits = 4,
+    caption = "Age-income profile: unconditional vs. conditional",
+    label = "age_income"
+  ) |>
+  kable_styling(latex_options = c("hold_position", "scale_down")) |>
+  as.character() |>
+  force_float_h()
+
+writeLines(table_regression_tex, "output/tables/age_income_regression.tex")
+
+
+## Visualizacion de los perfiles edad-ingreso
+
+# Grilla de edades sobre el rango observado en la muestra.
+age_grid <- seq(min(clean_data$age), max(clean_data$age), by = 1)
+
+# Perfil incondicional: model1 solo depende de age, no hay nada mas que fijar.
+profile1 <- tibble(age = age_grid, age2 = age_grid^2)
+profile1$log_inc_pred <- predict(model1, newdata = profile1)
+
+# Perfil condicional: model2 tambien depende de totalHoursWorked y relab, asi
+# que los fijamos en un "trabajador de referencia" (horas promedio, categoria
+# de relab mas frecuente) y solo variamos la edad. Como el modelo no tiene
+# interacciones con age, esta eleccion solo desplaza la curva verticalmente:
+# no cambia ni su forma ni la edad pico.
+ref_hours <- mean(clean_data$totalHoursWorked, na.rm = TRUE)
+ref_relab <- 1  # Obrero o empleado de empresa particular (categoria mas comun)
+
+profile2 <- tibble(
+  age = age_grid,
+  age2 = age_grid^2,
+  totalHoursWorked = ref_hours,
+  relab = ref_relab
+)
+profile2$log_inc_pred <- predict(model2, newdata = profile2)
+
+# Juntamos los dos perfiles para graficarlos comparados.
+profiles <- bind_rows(
+  profile1 |> mutate(model = "Unconditional"),
+  profile2 |> mutate(model = "Conditional")
+)
+
+peaks <- tibble(
+  model = c("Unconditional", "Conditional"),
+  peak_age = c(unname(peak_age1), unname(peak_age2))
+)
+
+age_profile_plot <- ggplot(profiles, aes(x = age, y = log_inc_pred, color = model)) +
+  geom_line(linewidth = 1) +
+  geom_vline(
+    data = peaks, aes(xintercept = peak_age, color = model),
+    linetype = "dashed", show.legend = FALSE
+  ) +
+  scale_color_manual(
+    name = "Specification",
+    values = c(Unconditional = "#6c0a8a", Conditional = "#4daad5")
+  ) +
+  labs(
+    title = "Age-income profile: unconditional vs. conditional",
+    subtitle = "Dashed lines mark the implied peak age of each specification",
+    x = "Age",
+    y = "Predicted log(total monthly income)"
+  ) +
+  theme_minimal()
+
+ggsave("output/figures/age_income_profile.png", age_profile_plot, width = 8, height = 5)
+age_profile_plot

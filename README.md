@@ -1,6 +1,6 @@
 # Problem Set 1: Predicting Income
 
-## Breve descripción del proyecto
+## Descripción del proyecto
 
 Paquete de replicación del Problem Set 1 de *Big Data & Machine Learning para Economía
 Aplicada* (MECA 4107, Universidad de los Andes). Construimos y evaluamos modelos del
@@ -16,7 +16,7 @@ a tres análisis:
    *chunks* 1–7, validación en 8–10), comparando especificaciones por RMSE de
    validación, LOOCV y un análisis de importancia de variables.
 
-**Autores:** Maria Jose Perez, Juan Manuel Lozano, Samuel Suárez
+**Autores:** Maria Jose Perez, Juan Manuel Lozano, Samuel Suárez \
 Universidad de los Andes — 2026
 
 ---
@@ -57,7 +57,7 @@ Problem Set 1: Predicting Income/
 ## Instrucciones de replicación
 
 Desde la raíz del repositorio (esta carpeta, `Problem Set 1: Predicting Income/`),
-correr el master file (`script/00_Master_File.r`, que corre los demás en orden numérico:
+correr el master file (`script/00_Master_File.r`, que corre los demás scripts en orden numérico.
 
 Cada script lee y escribe rutas relativas (`"data/..."`, `"output/..."`) respecto al
 directorio de trabajo, por lo que debe ejecutarse desde la raíz. A alto nivel:

@@ -24,7 +24,7 @@ Universidad de los Andes — 2026
 ## Estructura del repositorio
 
 ```
-Problem Set 1: Predicting Income/
+Problem Set 1 - Predicting Income/
 │
 ├── README.md
 │
@@ -56,7 +56,7 @@ Problem Set 1: Predicting Income/
 
 ## Instrucciones de replicación
 
-Desde la raíz del repositorio (esta carpeta, `Problem Set 1: Predicting Income/`),
+Desde la raíz del repositorio (esta carpeta, `Problem Set 1 - Predicting Income/`),
 correr el master file (`script/00_Master_File.r`), que ejecuta los demás scripts en
 orden numérico:
 

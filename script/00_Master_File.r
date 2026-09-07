@@ -15,7 +15,7 @@
 
 ################################################################################
 
-# Usage (run from the repo root, the "Problem Set 1: Predicting Income/" dir):
+# Usage (run from the repo root, the "Problem Set 1 - Predicting Income/" dir):
 #
 #   Rscript script/00_Master_File.r            # run every step
 #   Rscript script/00_Master_File.r 04 05      # run only steps 04 and 05

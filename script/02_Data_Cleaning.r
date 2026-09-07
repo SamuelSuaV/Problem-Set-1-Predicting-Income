@@ -248,7 +248,20 @@ relab_labels <- c(
   "8" = "Jornalero o peón",
   "9" = "Otro"
 )
- 
+
+# English labels for the writeup tables (LaTex/missing_income.tex is in English).
+relab_labels_en <- c(
+  "1" = "Private employee",
+  "2" = "Government employee",
+  "3" = "Domestic worker",
+  "4" = "Self-employed",
+  "5" = "Employer / business owner",
+  "6" = "Unpaid family worker",
+  "7" = "Unpaid worker, another household's business",
+  "8" = "Day laborer",
+  "9" = "Other"
+)
+
 ##### mirar si tambien se actualiza la tabla de porcentajes
 relab_pct  <- pct_by_group(geih_clean, "relab")
 # Pendiente confirmar con el equipo si aplicamos las etiquetas de texto aquí:
@@ -258,6 +271,43 @@ formal_pct <- pct_by_group(geih_clean, "formal")
 
 relab_pct
 formal_pct
+
+# j. Missing-income rate by employment relationship
+# relab_pct (above) gives the *composition* of the missing group; this table
+# restates it as a rate: the share of *each* relab category that is itself
+# missing y_total_m. Unweighted, matching balance_table. Feeds
+# tab:relab-missing-rate in the "Characterizing Missing Income" writeup
+# (LaTex/missing_income.tex).
+relab_missing_rate <- geih_clean %>%
+  filter(!is.na(relab)) %>%
+  group_by(relab) %>%
+  summarise(
+    n            = n(),
+    n_missing    = sum(is.na(y_total_m)),
+    missing_rate = mean(is.na(y_total_m)) * 100,
+    .groups = "drop"
+  ) %>%
+  mutate(relab = relab_labels_en[as.character(relab)])
+
+relab_missing_rate
+
+relab_missing_rate_tex <- relab_missing_rate %>%
+  rename(
+    `Employment relationship` = relab,
+    N = n,
+    `N missing` = n_missing,
+    `Missing (\\%)` = missing_rate
+  ) %>%
+  kbl(
+    format = "latex", booktabs = TRUE, digits = 1, escape = FALSE,
+    caption = "Missing-income rate by employment relationship",
+    label = "relab-missing-rate"
+  ) %>%
+  kable_styling(latex_options = c("hold_position", "scale_down")) %>%
+  as.character() %>%
+  force_float_h()
+
+writeLines(relab_missing_rate_tex, "output/tables/relab_missing_rate.tex")
 
 ## 7. Save clean data
 

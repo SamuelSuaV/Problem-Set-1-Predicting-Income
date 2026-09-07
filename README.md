@@ -57,7 +57,22 @@ Problem Set 1: Predicting Income/
 ## Instrucciones de replicación
 
 Desde la raíz del repositorio (esta carpeta, `Problem Set 1: Predicting Income/`),
-correr el master file (`script/00_Master_File.r`, que corre los demás scripts en orden numérico.
+correr el master file (`script/00_Master_File.r`), que ejecuta los demás scripts en
+orden numérico:
+
+```bash
+Rscript script/00_Master_File.r            # corre todo el pipeline
+Rscript script/00_Master_File.r 04 05      # corre solo esos pasos (por su prefijo)
+FORCE_SCRAPE=1 Rscript script/00_Master_File.r   # fuerza el raspado (paso 01)
+```
+
+- Por defecto el paso 01 (raspado) se **salta si `data/geih_scrap.rds` ya existe**,
+  para no volver a golpear las páginas de la GEIH en cada corrida.
+- `FORCE_SCRAPE=1` (valores válidos: `1`, `true`, `yes`, `y`) delante del comando
+  fuerza el raspado aunque el `.rds` crudo exista; borrar `data/geih_scrap.rds` tiene
+  el mismo efecto. En Windows `cmd`, primero `set FORCE_SCRAPE=1` y luego el `Rscript`.
+- Pasar prefijos de paso (`01`, `4`, …) como argumentos corre solo ese subconjunto,
+  útil para iterar sobre una sección sin rehacer todo.
 
 Cada script lee y escribe rutas relativas (`"data/..."`, `"output/..."`) respecto al
 directorio de trabajo, por lo que debe ejecutarse desde la raíz. A alto nivel:

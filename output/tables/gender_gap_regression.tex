@@ -1,0 +1,15 @@
+\begin{table}[H]
+\centering
+\caption{\label{tab:gender_gap}Gender labour income gap: unconditional and conditional}
+\centering
+\resizebox{\ifdim\width>\linewidth\linewidth\else\width\fi}{!}{
+\begin{tabular}[t]{lrrrrrr}
+\toprule
+Specification & Female & SE (robust) & SE (bootstrap) & Gap (\%) & R$^2$ & N\\
+\midrule
+(1) Unconditional & -0.2405 & 0.0152 & 0.0151 & -21.3729 & 0.0180 & 14763\\
+(2) + age, age2, education & -0.3220 & 0.0132 & 0.0131 & -27.5299 & 0.2668 & 14763\\
+(3) + hours worked & -0.2270 & 0.0125 & 0.0124 & -20.3086 & 0.3433 & 14763\\
+\bottomrule
+\end{tabular}}
+\end{table}

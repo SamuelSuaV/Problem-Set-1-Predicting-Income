@@ -40,11 +40,15 @@ p_load(
 clean_data <- readRDS("data/geih_clean.rds")
 
 # id_hogar identifies a household: directorio is the dwelling and secuencia_p
-# the household within it, so only the pair is unique. It is the level we
-# cluster standard errors on, because 70% of the analysis sample shares a
-# household with someone else in it.
+# the household within it, so only the pair is unique. We do not cluster on it
+# (see section 3), but it is kept so the clustered alternative can be checked
+# in one line if anyone asks.
+# TEMPORAL: el filtro de maxEducLevel ya quedo en 02_Data_Cleaning.r, pero ese
+# script todavia no se ha vuelto a correr, asi que geih_clean.rds aun trae esa
+# fila. Va aqui tambien para que 04 y 05 corran sobre la misma muestra.
+# Borrar esta condicion cuando 02 se corra de nuevo.
 clean_data <- clean_data |>
-    filter(y_total_m > 0) |>
+    filter(y_total_m > 0, !is.na(maxEducLevel)) |>
     mutate(
       age2     = age^2,
       log_inc  = log(y_total_m),  #creamos una variable de logaritmo del ingreso para poder hacer la regresión
@@ -80,35 +84,35 @@ clean_data |>
 # implied peak age by 0.11 years (model 1) and 0.02 years (model 2), an order
 # of magnitude less than the width of their bootstrap confidence intervals.
 
-# Standard errors are clustered at the household level (id_hogar): the GEIH
-# samples dwellings and interviews every member of the household, so the
-# household - not the person - is the sampling unit, and 70% of the analysis
-# sample shares a household with someone else in it. Clustering leaves the
-# coefficients untouched and only affects inference. The problem set does not
-# ask for this; it is our own decision.
+# Standard errors are heteroskedasticity-robust. Income data are markedly
+# heteroskedastic - a salaried employee's income is far more predictable than a
+# self-employed worker's - and ignoring that understates the standard error of
+# beta_age by 24% (classical 0.00325 vs robust 0.00401).
 #
-# Decomposing the increase over the classical (iid) standard error of beta_age:
-#   classical 0.00325 -> robust (HC) 0.00401 -> clustered by household 0.00419
-# so most of it (x1.24) is heteroskedasticity, not clustering: households are
-# tiny here (1.7 people on average), which caps how much clustering can matter
-# even though within-household correlation is fairly strong (rho ~ 0.13).
-#
-# Robustness note: clustering by occupation (oficio) instead would double the
-# standard errors (0.00910, x2.27), because those clusters average 187 people -
-# a weak within-occupation correlation (rho ~ 0.02) compounded over many pairs.
-# We do not adopt it: occupations are not a sampling unit, so that correlation
-# reflects an omitted variable rather than the survey design. Either way no
-# qualitative conclusion changes (beta_age keeps t ~ 9.5).
+# We considered clustering and decided against it, following Abadie, Athey,
+# Imbens & Wooldridge, "When Should You Adjust Standard Errors for Clustering?":
+# clustering is justified by how treatment is assigned or how the sample was
+# drawn, not by the mere presence of within-group correlation.
+#   - By household (directorio + secuencia_p): 70% of the sample shares a
+#     household, and the GEIH does interview whole households, but the thought
+#     experiment that assigns age does not operate at the household level. It
+#     would have raised the standard error only 4% anyway (0.00419), because
+#     households average 1.7 people here - too small for clustering to bite.
+#   - By occupation (oficio): would have doubled the standard errors (0.00910)
+#     since those clusters average 187 people, but occupations are neither a
+#     sampling nor an assignment unit, so that correlation reflects an omitted
+#     variable rather than the design.
+# No qualitative conclusion changes under any of these choices.
 
 # a. Unconditional profile
 model1 <- feols(log_inc ~ age + age2,
-                data = clean_data, weights = ~fex_c, vcov = ~id_hogar)
+                data = clean_data, weights = ~fex_c, vcov = "hetero")
 summary(model1) # revisamos el resumen del modelo
 
 # b. Conditional profile: adds total hours worked and employment type, and no
 # other controls (as required by the problem set).
 model2 <- feols(log_inc ~ age + age2 + totalHoursWorked + factor(relab),
-                data = clean_data, weights = ~fex_c, vcov = ~id_hogar)
+                data = clean_data, weights = ~fex_c, vcov = "hetero")
 summary(model2) # revisamos el resumen del modelo
 
 
@@ -131,34 +135,20 @@ B <- 5000 # number of bootstrap samples
 # Each replicate refits the same weighted specification as in section 3, so the
 # bootstrap distribution is centred on the estimates we actually report.
 #
-# This is a CLUSTER bootstrap: the resampling unit is the household, not the
-# person. Resampling people one by one would treat the sample as 14,764
-# independent draws when 70% of it shares a household, and would understate the
-# uncertainty exactly the way unclustered standard errors do (see section 3).
-# So each replicate draws 8,806 households with replacement and keeps every
-# member of the households drawn - a household drawn twice contributes its
-# members twice.
-
-# filas_por_hogar maps each household to the row positions of its members.
-# Building it once and indexing into it per replicate is much faster than
-# joining the household draw back onto clean_data 3,000 times.
-filas_por_hogar <- split(seq_len(nrow(clean_data)), clean_data$id_hogar)
-
-# boot() resamples the rows of whatever it is given, so we hand it one row per
-# household: `index` then indexes households, and unlist() expands the drawn
-# households back into the row positions of their members.
-hogares <- tibble(id_hogar = names(filas_por_hogar))
+# The resampling unit is the individual, matching the heteroskedasticity-robust
+# standard errors of section 3: the ordinary pairs bootstrap is asymptotically
+# equivalent to the robust (White) variance estimator, so the two agree by
+# construction rather than by coincidence.
 
 # a. Unconditional profile
 peak_age_stat1 <- function(data, index) {
-  filas <- unlist(filas_por_hogar[index], use.names = FALSE)
   model <- feols(log_inc ~ age + age2,
-                 data = clean_data[filas, ], weights = ~fex_c)
+                 data = data[index, ], weights = ~fex_c)
   unname(-coef(model)["age"] / (2 * coef(model)["age2"]))
 }
 
 set.seed(123) # for reproducibility
-boot_peak_age1 <- boot(hogares, peak_age_stat1, R = B)
+boot_peak_age1 <- boot(clean_data, peak_age_stat1, R = B)
 boot_peak_age1          # original, bias y std. error bootstrap
 sd(boot_peak_age1$t)    # sd bootstrap (equivalente al "std. error" de arriba)
 boot.ci(boot_peak_age1, type = "perc")  # IC 95%
@@ -166,14 +156,13 @@ boot.ci(boot_peak_age1, type = "perc")  # IC 95%
 
 # b. Conditional profile
 peak_age_stat2 <- function(data, index) {
-  filas <- unlist(filas_por_hogar[index], use.names = FALSE)
   model <- feols(log_inc ~ age + age2 + totalHoursWorked + factor(relab),
-                 data = clean_data[filas, ], weights = ~fex_c)
+                 data = data[index, ], weights = ~fex_c)
   unname(-coef(model)["age"] / (2 * coef(model)["age2"]))
 }
 
 set.seed(123) # for reproducibility
-boot_peak_age2 <- boot(hogares, peak_age_stat2, R = B)
+boot_peak_age2 <- boot(clean_data, peak_age_stat2, R = B)
 boot_peak_age2
 sd(boot_peak_age2$t)
 boot.ci(boot_peak_age2, type = "perc")  # IC 95%
@@ -245,8 +234,13 @@ writeLines(table_regression_tex, "output/tables/age_income_regression.tex")
 
 ## 7. Age-income profile plot
 
-# a. Age grid over the range observed in the sample.
-age_grid <- seq(min(clean_data$age), max(clean_data$age), by = 1)
+# a. Age grid. It stops at 70 rather than at the sample maximum of 91: the
+# 99th percentile of age is 71, so beyond that the curve is fitted on about 1%
+# of the observations (16 people are older than 80). Plotting to 91 would give
+# a third of the chart's width to that 1% and let an extrapolation artefact -
+# the parabola diving - dominate the picture.
+age_max_plot <- 70
+age_grid <- seq(min(clean_data$age), age_max_plot, by = 1)
 
 # b. Unconditional profile: model1 only depends on age, nothing else to hold
 # fixed.
@@ -278,28 +272,82 @@ profiles <- bind_rows(
 # e. Plot both curves, marking each specification's peak age. Only the shape
 # and the peak age are comparable across curves: their vertical position
 # depends on the reference worker chosen above.
+# lab_hjust pushes each peak label away from the other: the two peaks are only
+# about three years apart, so centred labels would overlap.
 peaks <- tibble(
   model = c("Unconditional", "Conditional"),
   peak_age = c(unname(peak_age1), unname(peak_age2))
-)
+) |>
+  mutate(lab_hjust = if_else(peak_age == min(peak_age), 1.1, -0.1))
 
-age_profile_plot <- ggplot(profiles, aes(x = age, y = log_inc_pred, color = model)) +
-  geom_line(linewidth = 1) +
+# The outcome is in logs, which nobody can read off an axis, so the breaks sit
+# at round peso amounts (doubling, the natural spacing on a log scale) and are
+# labelled in pesos. The curves are unchanged; only the axis becomes legible.
+peso_breaks <- c(6e5, 8e5, 1e6, 1.5e6, 2e6, 3e6)
+peso_labels <- c("$600K", "$800K", "$1.0M", "$1.5M", "$2.0M", "$3.0M")
+
+# Each curve is labelled on itself, so identity never depends on matching a
+# colour back to a legend.
+series_labels <- profiles |>
+  group_by(model) |>
+  slice_max(age, n = 1) |>
+  ungroup()
+
+y_top <- max(profiles$log_inc_pred)
+
+age_profile_plot <- ggplot(profiles,
+                           aes(x = age, y = log_inc_pred, color = model)) +
   geom_vline(
     data = peaks, aes(xintercept = peak_age, color = model),
-    linetype = "dashed", show.legend = FALSE
+    linetype = "dashed", linewidth = 0.5, show.legend = FALSE
+  ) +
+  geom_line(linewidth = 0.9) +
+  geom_text(
+    data = peaks,
+    aes(x = peak_age, y = y_top, label = sprintf("%.1f", peak_age),
+        hjust = lab_hjust),
+    vjust = -1.2, size = 3.4, fontface = "bold", show.legend = FALSE
+  ) +
+  geom_text(
+    data = series_labels, aes(label = model),
+    hjust = -0.1, size = 3.8, fontface = "bold", show.legend = FALSE
   ) +
   scale_color_manual(
     name = "Specification",
-    values = c(Unconditional = "#6c0a8a", Conditional = "#4daad5")
+    values = c(Unconditional = "#235da3", Conditional = "#ad0d5d")
   ) +
+  scale_y_continuous(breaks = log(peso_breaks), labels = peso_labels,
+                     expand = expansion(mult = c(0.05, 0.14))) +
+  scale_x_continuous(breaks = seq(20, 70, by = 10)) +
+  coord_cartesian(xlim = c(min(age_grid), max(age_grid) + 11), clip = "off") +
   labs(
-    title = "Age-income profile: unconditional vs. conditional",
-    subtitle = "Dashed lines mark the implied peak age of each specification",
+    title = "Labour income peaks around age 41 to 44 in Bogota",
     x = "Age",
-    y = "Predicted log(total monthly income)"
+    y = NULL,
+    caption = paste0(
+      "Dashed lines mark each specification's implied peak age; ",
+      "vertical axis on a log scale.\n",
+      "Only the shape and the peak age are comparable across curves: their ",
+      "vertical position depends on the reference\nworker chosen for the ",
+      "conditional profile. Ages shown to 70, the sample's 99th percentile.\n",
+      "GEIH 2018, Bogota: employed adults 18+ with positive labour income ",
+      "(n = 14,763), weighted by fex_c."
+    )
   ) +
-  theme_minimal()
+  theme_minimal(base_size = 12) +
+  theme(
+    legend.position       = "none",
+    panel.grid.minor      = element_blank(),
+    panel.grid.major.x    = element_blank(),
+    panel.grid.major.y    = element_line(color = "grey92", linewidth = 0.4),
+    plot.title            = element_text(face = "bold", size = 14,
+                                         margin = margin(b = 14)),
+    plot.title.position   = "plot",
+    plot.caption          = element_text(color = "grey45", hjust = 0, size = 8),
+    plot.caption.position = "plot",
+    plot.margin           = margin(12, 28, 10, 10)
+  )
 
-ggsave("output/figures/age_income_profile.png", age_profile_plot, width = 8, height = 5)
+ggsave("output/figures/age_income_profile.png", age_profile_plot,
+       width = 8, height = 5, dpi = 300)
 age_profile_plot

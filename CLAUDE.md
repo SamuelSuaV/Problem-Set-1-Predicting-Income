@@ -33,7 +33,7 @@ No automated test suite; scripts are run directly and their console/table output
 
 ## Commands
 
-- Run a script (from the repo root, i.e. this `Problem Set 1: Predicting Income/` directory): `Rscript script/02_Data_Cleaning.r`
+- Run a script (from the repo root, i.e. this `Problem Set 1 - Predicting Income/` directory): `Rscript script/02_Data_Cleaning.r`
 - Dependencies are managed inline via `pacman::p_load(...)` at the top of each script, which installs any missing CRAN package automatically — no separate install step.
 - Compile the writeup: `cd LaTex && pdflatex -interaction=nonstopmode main.tex && pdflatex -interaction=nonstopmode main.tex` (two passes; run after `02`/`03` so the `.tex`/figure inputs are current). Clean up `main.aux`/`.log`/`.out`/`.toc` afterward — the `.gitignore` excludes `*.pdf` but not these, so they're easy to accidentally commit.
 

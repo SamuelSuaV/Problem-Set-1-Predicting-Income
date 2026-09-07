@@ -32,15 +32,24 @@ p_load(
     tidyverse,
     boot,
     broom,
-    kableExtra)
+    kableExtra,
+    fixest)
 
 ## 2. Load data and build model variables
 
 clean_data <- readRDS("data/geih_clean.rds")
 
+# id_hogar identifies a household: directorio is the dwelling and secuencia_p
+# the household within it, so only the pair is unique. It is the level we
+# cluster standard errors on, because 70% of the analysis sample shares a
+# household with someone else in it.
 clean_data <- clean_data |>
     filter(y_total_m > 0) |>
-    mutate(age2 = age^2, log_inc = log(y_total_m))  #creamos una variable de logaritmo del ingreso para poder hacer la regresión
+    mutate(
+      age2     = age^2,
+      log_inc  = log(y_total_m),  #creamos una variable de logaritmo del ingreso para poder hacer la regresión
+      id_hogar = paste(directorio, secuencia_p, sep = "_")
+    )
 
 # relab labels (duplicated from 02_Data_Cleaning.r: every script runs on its
 # own, so the vector defined there is not available here).
@@ -71,14 +80,35 @@ clean_data |>
 # implied peak age by 0.11 years (model 1) and 0.02 years (model 2), an order
 # of magnitude less than the width of their bootstrap confidence intervals.
 
+# Standard errors are clustered at the household level (id_hogar): the GEIH
+# samples dwellings and interviews every member of the household, so the
+# household - not the person - is the sampling unit, and 70% of the analysis
+# sample shares a household with someone else in it. Clustering leaves the
+# coefficients untouched and only affects inference. The problem set does not
+# ask for this; it is our own decision.
+#
+# Decomposing the increase over the classical (iid) standard error of beta_age:
+#   classical 0.00325 -> robust (HC) 0.00401 -> clustered by household 0.00419
+# so most of it (x1.24) is heteroskedasticity, not clustering: households are
+# tiny here (1.7 people on average), which caps how much clustering can matter
+# even though within-household correlation is fairly strong (rho ~ 0.13).
+#
+# Robustness note: clustering by occupation (oficio) instead would double the
+# standard errors (0.00910, x2.27), because those clusters average 187 people -
+# a weak within-occupation correlation (rho ~ 0.02) compounded over many pairs.
+# We do not adopt it: occupations are not a sampling unit, so that correlation
+# reflects an omitted variable rather than the survey design. Either way no
+# qualitative conclusion changes (beta_age keeps t ~ 9.5).
+
 # a. Unconditional profile
-model1 <- lm(log_inc ~ age + age2, data = clean_data, weights = fex_c)
+model1 <- feols(log_inc ~ age + age2,
+                data = clean_data, weights = ~fex_c, vcov = ~id_hogar)
 summary(model1) # revisamos el resumen del modelo
 
 # b. Conditional profile: adds total hours worked and employment type, and no
 # other controls (as required by the problem set).
-model2 <- lm(log_inc ~ age + age2 + totalHoursWorked + factor(relab),
-             data = clean_data, weights = fex_c)
+model2 <- feols(log_inc ~ age + age2 + totalHoursWorked + factor(relab),
+                data = clean_data, weights = ~fex_c, vcov = ~id_hogar)
 summary(model2) # revisamos el resumen del modelo
 
 
@@ -96,19 +126,39 @@ peak_age2 <- -coef(model2)["age"] / (2 * coef(model2)["age2"])
 
 ## 5. Bootstrap confidence intervals for the peak age
 
-B <- 3000 # number of bootstrap samples
+B <- 5000 # number of bootstrap samples
 
 # Each replicate refits the same weighted specification as in section 3, so the
 # bootstrap distribution is centred on the estimates we actually report.
+#
+# This is a CLUSTER bootstrap: the resampling unit is the household, not the
+# person. Resampling people one by one would treat the sample as 14,764
+# independent draws when 70% of it shares a household, and would understate the
+# uncertainty exactly the way unclustered standard errors do (see section 3).
+# So each replicate draws 8,806 households with replacement and keeps every
+# member of the households drawn - a household drawn twice contributes its
+# members twice.
+
+# filas_por_hogar maps each household to the row positions of its members.
+# Building it once and indexing into it per replicate is much faster than
+# joining the household draw back onto clean_data 3,000 times.
+filas_por_hogar <- split(seq_len(nrow(clean_data)), clean_data$id_hogar)
+
+# boot() resamples the rows of whatever it is given, so we hand it one row per
+# household: `index` then indexes households, and unlist() expands the drawn
+# households back into the row positions of their members.
+hogares <- tibble(id_hogar = names(filas_por_hogar))
 
 # a. Unconditional profile
 peak_age_stat1 <- function(data, index) {
-  model <- lm(log_inc ~ age + age2, data = data[index, ], weights = fex_c)
-  -coef(model)["age"] / (2 * coef(model)["age2"])
+  filas <- unlist(filas_por_hogar[index], use.names = FALSE)
+  model <- feols(log_inc ~ age + age2,
+                 data = clean_data[filas, ], weights = ~fex_c)
+  unname(-coef(model)["age"] / (2 * coef(model)["age2"]))
 }
 
 set.seed(123) # for reproducibility
-boot_peak_age1 <- boot(clean_data, peak_age_stat1, R = B)
+boot_peak_age1 <- boot(hogares, peak_age_stat1, R = B)
 boot_peak_age1          # original, bias y std. error bootstrap
 sd(boot_peak_age1$t)    # sd bootstrap (equivalente al "std. error" de arriba)
 boot.ci(boot_peak_age1, type = "perc")  # IC 95%
@@ -116,13 +166,14 @@ boot.ci(boot_peak_age1, type = "perc")  # IC 95%
 
 # b. Conditional profile
 peak_age_stat2 <- function(data, index) {
-  model <- lm(log_inc ~ age + age2 + totalHoursWorked + factor(relab),
-              data = data[index, ], weights = fex_c)
-  -coef(model)["age"] / (2 * coef(model)["age2"])
+  filas <- unlist(filas_por_hogar[index], use.names = FALSE)
+  model <- feols(log_inc ~ age + age2 + totalHoursWorked + factor(relab),
+                 data = clean_data[filas, ], weights = ~fex_c)
+  unname(-coef(model)["age"] / (2 * coef(model)["age2"]))
 }
 
 set.seed(123) # for reproducibility
-boot_peak_age2 <- boot(clean_data, peak_age_stat2, R = B)
+boot_peak_age2 <- boot(hogares, peak_age_stat2, R = B)
 boot_peak_age2
 sd(boot_peak_age2$t)
 boot.ci(boot_peak_age2, type = "perc")  # IC 95%

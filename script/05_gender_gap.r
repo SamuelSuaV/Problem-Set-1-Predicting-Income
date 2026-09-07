@@ -45,10 +45,12 @@ clean_data <- readRDS("data/geih_clean.rds")
 
 # Same analysis sample as 04_Age_Labor_Income.r: employed adults with strictly
 # positive labour income (zeros and missings cannot enter a log outcome).
-# female is built from the codebook coding of sex (=1 male, =0 female); the
-# problem set asks for the coefficient on Female, not on male.
+# female is built from the codebook coding of sex (=1 male, =0 female).
+# TEMPORAL: el filtro de maxEducLevel ya quedo en 02_Data_Cleaning.r, pero ese
+# script todavia no se ha vuelto a correr, asi que geih_clean.rds aun trae esa
+# fila. Borrar esta condicion cuando 02 se corra de nuevo.
 clean_data <- clean_data |>
-  filter(y_total_m > 0) |>
+  filter(y_total_m > 0, !is.na(maxEducLevel)) |>
   mutate(
     age2    = age^2,
     log_inc = log(y_total_m),
@@ -67,6 +69,7 @@ clean_data <- clean_data |>
 # men. It bundles together every channel (education, hours, occupation, ...).
 gap_uncond <- lm(log_inc ~ female, data = clean_data, weights = fex_c)
 summary(gap_uncond)
+
 
 # b. Conditional gap, human capital controls. Age and education are
 # predetermined with respect to sex, so they are confounders rather than
@@ -94,3 +97,20 @@ gap_pct <- function(model) (exp(coef(model)["female"]) - 1) * 100
 gap_pct(gap_uncond)
 gap_pct(gap_hk)
 gap_pct(gap_hours)
+
+
+
+
+#### FWL
+
+#stage 1: regress income on the controls  
+stage1_FWL <- lm(log_inc ~ age + age2 + factor(maxEducLevel), data = clean_data, weights = fex_c)
+residuals_stage1 <- resid(stage1_FWL)
+
+#stage 2: regress female on controls
+stage2_FWL <- lm(female ~ age + age2 + factor(maxEducLevel), data = clean_data, weights = fex_c)
+residuals_stage2 <- resid(stage2_FWL)
+
+
+#stage 3: regress residuals of stage 1 on residuals of stage 2
+stage3_FWL <- lm(residuals_stage1 ~ residuals_stage2, weights = clean_data$fex_c)

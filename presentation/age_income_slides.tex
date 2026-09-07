@@ -1,0 +1,209 @@
+% !TEX program = pdflatex
+% ============================================================================
+% Problem Set 1 - Section 1: Age-Labor Income Profile
+% Slide deck. Every number and figure is pulled from output/ so the deck stays
+% in sync with script/04_age_labor_income.r: re-run that script, recompile this
+% file, done. Nothing is hard-coded here.
+%
+%   - \input ../output/tables/age_income_stats.tex        (numbers as macros)
+%   - \input ../output/tables/age_income_slide_table.tex  (regression table)
+%   - ../output/figures/age_income_profile.png            (fitted profiles)
+%   - ../output/figures/income_dist_age.png               (descriptive motivation)
+%
+% Compile from inside presentation/:  pdflatex age_income_slides.tex
+% Export/submit as age_equipo_XX.pdf (XX = team number; see \teamnumber below).
+% ============================================================================
+\documentclass[aspectratio=169]{beamer}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,es-noshorthands]{babel}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{xcolor}
+
+% Palette matches the age-income profile figure (04_age_labor_income.r).
+\definecolor{uandespurple}{HTML}{6C0A8A}
+\definecolor{uandesblue}{HTML}{4DAAD5}
+
+\usetheme{Boadilla}
+\setbeamercolor{structure}{fg=uandespurple}
+\setbeamercolor{frametitle}{fg=uandespurple}
+\setbeamercolor{title}{fg=uandespurple}
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{caption}[numbered]
+\setbeamerfont{frametitle}{size=\large}
+
+% Key numbers (peak ages, bootstrap CIs, R^2, N, ...) as LaTeX macros.
+\input{../output/tables/age_income_stats.tex}
+
+\newcommand{\teamnumber}{XX}
+
+\title[Perfil edad--ingreso]{Perfil edad--ingreso laboral en Bogotá}
+\subtitle{Problem Set 1 \textbullet\ Sección 1 \textbullet\ Equipo \teamnumber}
+\author[Equipo \teamnumber]{María José Pérez \and Juan Manuel Lozano \and Samuel Suárez Valle}
+\institute[Uniandes]{MECA 4107 --- Big Data y Machine Learning para Economía Aplicada}
+\date{\today}
+
+\begin{document}
+
+\begin{frame}[plain]
+  \titlepage
+\end{frame}
+
+% ---------------------------------------------------------------------------
+% Slide 1 (mandatory): Result Overview
+% ---------------------------------------------------------------------------
+\begin{frame}{Resultado principal}
+  \begin{block}{El ingreso laboral crece con la edad, alcanza un máximo y luego decae}
+    \begin{itemize}
+      \item \textbf{Perfil incondicional}
+        $\bigl(\log w = \beta_1 + \beta_2\,\text{edad} + \beta_3\,\text{edad}^2 + u\bigr)$:
+        edad pico \textbf{\AgePeakUncond\ años},
+        IC bootstrap 95\% $[\AgePeakUncondLo,\ \AgePeakUncondHi]$,
+        \ $R^2 = \AgeRsqUncond$.
+      \item \textbf{Perfil condicional} (añade horas trabajadas y tipo de empleo):
+        edad pico \textbf{\AgePeakCond\ años},
+        IC 95\% $[\AgePeakCondLo,\ \AgePeakCondHi]$,
+        \ $R^2 = \AgeRsqCond$.
+      \item El máximo cae \emph{dentro} del rango de edad observado y es coherente con la
+        teoría del capital humano: la inversión temprana se amortiza y después domina
+        la depreciación.
+    \end{itemize}
+  \end{block}
+  \vfill
+  {\footnotesize IC estimado por bootstrap con \AgeBootReps\ repeticiones (remuestreo de
+  individuos). Muestra: \AgeNobs\ ocupados de 18 años o más con ingreso laboral positivo,
+  ponderada por \texttt{fex\_c}.}
+\end{frame}
+
+% ---------------------------------------------------------------------------
+\begin{frame}{Pregunta y marco teórico}
+  \textbf{¿Cómo varía el ingreso laboral a lo largo del ciclo de vida en Bogotá,
+  y qué le dice ese perfil a la autoridad tributaria?}
+  \vspace{0.6em}
+  \begin{itemize}
+    \item Teoría del capital humano (Mincer): los retornos a la experiencia son
+      decrecientes $\Rightarrow$ el perfil edad--ingreso es cóncavo.
+    \item Una especificación cuadrática en la edad captura esa concavidad y entrega
+      una \emph{edad pico} interpretable, $\text{edad}^\ast = -\beta_2 / (2\beta_3)$.
+    \item Uso tributario: el perfil fija un ingreso esperado por edad; desviaciones
+      sistemáticas por debajo de ese perfil son una señal de posible sub-reporte.
+  \end{itemize}
+\end{frame}
+
+% ---------------------------------------------------------------------------
+\begin{frame}{Datos y decisiones empíricas}
+  \begin{itemize}
+    \item \textbf{Fuente:} GEIH 2018 (Bogotá), 10 \emph{chunks} scrapeados y combinados.
+    \item \textbf{Muestra:} ocupados de 18 años o más (\texttt{age >= 18 \& ocu == 1}).
+    \item \textbf{Variable dependiente:} $\log$ del ingreso laboral mensual total
+      (\texttt{y\_total\_m} $=$ asalariado $+$ independiente).
+    \item \textbf{Ingresos no positivos:} se excluyen (el logaritmo no está definido).
+      La no respuesta en \texttt{y\_total\_m} se concentra en trabajadores familiares
+      sin remuneración (\texttt{relab} 6--7), fuera del margen de interés.
+    \item \textbf{Ponderación:} todas las regresiones usan \texttt{fex\_c}
+      (factor de expansión). El perfil describe a los trabajadores de Bogotá,
+      no a los \AgeNobs\ respondientes observados.
+  \end{itemize}
+\end{frame}
+
+% ---------------------------------------------------------------------------
+\begin{frame}{Evidencia descriptiva: los ingresos medios ya dibujan una joroba}
+  \centering
+  \includegraphics[height=0.80\textheight]{../output/figures/income_dist_age.png}
+
+  {\footnotesize Líneas punteadas: media (ponderada) de $\log$ ingreso por rango de
+  edad. El grupo 39--50 tiene la media más alta; el grupo 51--94 retrocede.}
+\end{frame}
+
+% ---------------------------------------------------------------------------
+\begin{frame}{Especificaciones}
+  \textbf{Incondicional}
+  \[
+    \log(w_i) = \beta_1 + \beta_2\,\text{edad}_i + \beta_3\,\text{edad}_i^2 + u_i
+  \]
+
+  \textbf{Condicional} (añade horas y tipo de empleo, sin otros controles, según el enunciado)
+  \[
+    \log(w_i) = \beta_1 + \beta_2\,\text{edad}_i + \beta_3\,\text{edad}_i^2
+      + \gamma\,\text{horas}_i + \sum_{k}\delta_k\,\text{relab}_{k,i} + u_i
+  \]
+
+  \vspace{0.4em}
+  \begin{itemize}
+    \item Edad pico implícita: $\text{edad}^\ast = -\beta_2 / (2\beta_3)$
+      (parábola cóncava si $\beta_3 < 0$).
+    \item IC del pico por \textbf{bootstrap}: \AgeBootReps\ remuestreos de individuos,
+      reestimando en cada uno la misma especificación ponderada; percentiles 2.5 y 97.5
+      de la distribución de $\text{edad}^\ast$.
+  \end{itemize}
+\end{frame}
+
+% ---------------------------------------------------------------------------
+\begin{frame}{Comparación de especificaciones}
+  \centering
+  {\small \input{../output/tables/age_income_slide_table.tex}}
+
+  \vspace{0.6em}
+  {\footnotesize Errores estándar entre paréntesis. Regresiones ponderadas por
+  \texttt{fex\_c}. Los efectos fijos de tipo de empleo (\texttt{relab}) se incluyen
+  pero no se reportan individualmente. IC del pico: percentil bootstrap 95\%.}
+\end{frame}
+
+% ---------------------------------------------------------------------------
+\begin{frame}{Perfiles edad--ingreso estimados}
+  \centering
+  \includegraphics[height=0.82\textheight]{../output/figures/age_income_profile.png}
+\end{frame}
+
+% ---------------------------------------------------------------------------
+\begin{frame}{Edad pico e intervalo de confianza}
+  \begin{columns}[T]
+    \begin{column}{0.42\textwidth}
+      \textcolor{uandespurple}{\textbf{Incondicional}}
+      \begin{itemize}
+        \item Edad pico: \textbf{\AgePeakUncond\ años}
+        \item IC 95\%: $[\AgePeakUncondLo,\ \AgePeakUncondHi]$
+        \item $R^2 = \AgeRsqUncond$
+      \end{itemize}
+      \vspace{0.6em}
+      \textcolor{uandesblue}{\textbf{Condicional}}
+      \begin{itemize}
+        \item Edad pico: \textbf{\AgePeakCond\ años}
+        \item IC 95\%: $[\AgePeakCondLo,\ \AgePeakCondHi]$
+        \item $R^2 = \AgeRsqCond$
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.56\textwidth}
+      \begin{itemize}
+        \item Ambos intervalos son estrechos ($\approx 1$ año de ancho) y quedan
+          cómodamente dentro del rango de edad observado.
+        \item Al condicionar por horas y tipo de empleo, la edad pico se
+          \textbf{desplaza hacia edades mayores} ($\approx +3$ años) y el perfil
+          se aplana.
+        \item Lectura: parte del crecimiento temprano del ingreso no es la edad en
+          sí, sino más horas trabajadas y el paso hacia mejores modalidades de empleo.
+          Al mantenerlas fijas, el retorno puro a la edad es más plano y tardío.
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ---------------------------------------------------------------------------
+\begin{frame}{Conclusiones}
+  \begin{itemize}
+    \item El perfil edad--ingreso en Bogotá es cóncavo, con un pico entre los
+      \textbf{\AgePeakUncond\ y \AgePeakCond\ años}, consistente con la teoría del
+      capital humano.
+    \item El pico se estima con \textbf{precisión} (IC bootstrap estrecho), pero el
+      $R^2$ es \textbf{bajo} ($\AgeRsqUncond$ / $\AgeRsqCond$): la edad explica poco
+      de la varianza individual del ingreso.
+    \item Para la autoridad tributaria: la edad da una referencia de ingreso esperado
+      por ciclo de vida, pero es un predictor débil por sí sola. Debe combinarse con
+      horas, tipo de empleo y otras características (Secciones 2 y 3).
+  \end{itemize}
+\end{frame}
+
+\end{document}

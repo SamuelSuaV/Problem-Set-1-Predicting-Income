@@ -191,6 +191,83 @@ table_regression_tex <- table_regression |>
 
 writeLines(table_regression_tex, "output/tables/age_income_regression.tex")
 
+# d. Slide-ready exports for the Section 1 deck
+# (presentation/age_income_slides.r -> ... /age_income_slides.tex). Two files,
+# both regenerated on every run so the slides stay in sync with this script:
+#   - age_income_stats.tex: the key numbers as LaTeX macros, \input in the
+#     deck's preamble and used on the "Resultado principal" slide.
+#   - age_income_slide_table.tex: a clean regression table (no float wrapper,
+#     relab dummies collapsed to a single fixed-effects row, age2 with enough
+#     decimals to show its SE), \input inside a frame.
+
+ci1 <- boot.ci(boot_peak_age1, type = "perc")$percent[4:5]
+ci2 <- boot.ci(boot_peak_age2, type = "perc")$percent[4:5]
+
+fmt <- function(x, d = 1) formatC(x, format = "f", digits = d)
+
+stats_macros <- c(
+  paste0("\\newcommand{\\AgePeakUncond}{",   fmt(peak_age1), "}"),
+  paste0("\\newcommand{\\AgePeakUncondLo}{", fmt(ci1[1]), "}"),
+  paste0("\\newcommand{\\AgePeakUncondHi}{", fmt(ci1[2]), "}"),
+  paste0("\\newcommand{\\AgePeakCond}{",     fmt(peak_age2), "}"),
+  paste0("\\newcommand{\\AgePeakCondLo}{",   fmt(ci2[1]), "}"),
+  paste0("\\newcommand{\\AgePeakCondHi}{",   fmt(ci2[2]), "}"),
+  paste0("\\newcommand{\\AgeRsqUncond}{",    fmt(glance(model1)$r.squared, 3), "}"),
+  paste0("\\newcommand{\\AgeRsqCond}{",      fmt(glance(model2)$r.squared, 3), "}"),
+  paste0("\\newcommand{\\AgeNobs}{",         format(nobs(model1), big.mark = ","), "}"),
+  paste0("\\newcommand{\\AgeBootReps}{",     format(B, big.mark = ","), "}"),
+  paste0("\\newcommand{\\AgeBetaAge}{",      fmt(coef(model1)["age"], 3), "}"),
+  paste0("\\newcommand{\\AgeBetaAgeSq}{",    fmt(coef(model1)["age2"], 5), "}")
+)
+writeLines(stats_macros, "output/tables/age_income_stats.tex")
+
+t1 <- tidy(model1)
+t2 <- tidy(model2)
+pick <- function(tab, term, col) {
+  val <- tab[[col]][tab$term == term]
+  if (length(val) == 0) NA_real_ else val
+}
+cell <- function(est, se, d = 3) {
+  if (is.na(est)) return("")
+  out <- formatC(est, format = "f", digits = d)
+  if (!is.na(se)) out <- paste0(out, " (", formatC(se, format = "f", digits = d), ")")
+  out
+}
+
+slide_tbl <- tribble(
+  ~Variable, ~Unconditional, ~Conditional,
+  "Age",
+    cell(pick(t1, "age", "estimate"), pick(t1, "age", "std.error")),
+    cell(pick(t2, "age", "estimate"), pick(t2, "age", "std.error")),
+  "Age$^2$",
+    cell(pick(t1, "age2", "estimate"), pick(t1, "age2", "std.error"), 6),
+    cell(pick(t2, "age2", "estimate"), pick(t2, "age2", "std.error"), 6),
+  "Total hours worked (per month)",
+    "",
+    cell(pick(t2, "totalHoursWorked", "estimate"), pick(t2, "totalHoursWorked", "std.error"), 4),
+  "Employment type (relab) fixed effects",
+    "No", "Yes",
+  "Implied peak age",
+    fmt(peak_age1), fmt(peak_age2),
+  "95\\% bootstrap CI for peak age",
+    paste0("[", fmt(ci1[1]), ", ", fmt(ci1[2]), "]"),
+    paste0("[", fmt(ci2[1]), ", ", fmt(ci2[2]), "]"),
+  "$R^2$",
+    fmt(glance(model1)$r.squared, 3), fmt(glance(model2)$r.squared, 3),
+  "N",
+    format(nobs(model1), big.mark = ","), format(nobs(model2), big.mark = ",")
+)
+
+slide_tbl_tex <- slide_tbl |>
+  kbl(
+    format = "latex", booktabs = TRUE, escape = FALSE, align = "lcc",
+    col.names = c("", "Unconditional", "Conditional")
+  ) |>
+  row_spec(4, extra_latex_after = "\\midrule") |>
+  as.character()
+
+writeLines(slide_tbl_tex, "output/tables/age_income_slide_table.tex")
+
 
 ## 7. Age-income profile plot
 

@@ -20,14 +20,16 @@
 # 7. Leave-one-out CV via the leverage shortcut
 # 8. Model comparison table and export to LaTeX
 # 9. Variable importance for the best model (standardized |beta|) and plot
+# 10. Validation RMSE by subgroup for the best model (bias check) and bar plot
 
 ################################################################################
 
 # Input:  Clean analysis dataframe from 02_Data_Cleaning.r and the training
 #         models saved by 06_income_prediction_train.r
-# Output: Model comparison table (output/tables/section3_model_comparison.tex)
-#         and variable-importance figure
-#         (output/figures/section3_variable_importance.png)
+# Output: Model comparison table (output/tables/section3_model_comparison.tex),
+#         variable-importance figure
+#         (output/figures/section3_variable_importance.png) and subgroup
+#         validation-RMSE figure (output/figures/section3_subgroup_rmse.png)
 
 ################################################################################
 
@@ -72,6 +74,48 @@ clean_data <- readRDS("data/geih_clean.rds") |>
 # 06_income_prediction_train.r.
 train_data      <- clean_data |> filter(subset %in% 1:7)
 validation_data <- clean_data |> filter(subset %in% 8:10)
+
+# Categoric validation data
+validation_formal <- validation_data |>
+    filter(formal == 1)
+
+validation_informal <- validation_data |>
+    filter(formal == 0)
+
+validation_female <- validation_data |>
+    filter(female == 1)
+
+validation_male <- validation_data |>
+    filter(female == 0)
+
+validation_college <- validation_data |>
+    filter(college == 1)
+
+validation_nocollege <- validation_data |>
+    filter(college == 0)
+
+validation_account <- validation_data |>
+    filter(cuentaPropia == 1)
+
+validation_noaccount <- validation_data |>
+    filter(cuentaPropia == 0)
+
+validation_transfer <- validation_data |>
+    filter(recibe_transferencias == 1)
+
+validation_notransfer <- validation_data |>
+    filter(recibe_transferencias == 0)
+
+# maxEducLevel has seven ordered levels, so its held-out subgroups are kept
+# in a named list (name = level code) rather than one object per level.
+validation_by_educ <- validation_data |>
+    filter(!is.na(maxEducLevel)) |>
+    group_split(maxEducLevel)
+names(validation_by_educ) <- map_chr(
+    validation_by_educ, \(d) as.character(d$maxEducLevel[1])
+)
+
+
 
 
 ## 3. Five additional specifications (economic justification in comments)
@@ -289,3 +333,109 @@ importance_plot <- ggplot(
 ggsave("output/figures/section3_variable_importance.png", importance_plot,
        width = 8, height = 5)
 importance_plot
+
+
+## 10. Validation RMSE by subgroup for the best model (bias check)
+
+# The single overall validation RMSE from section 5 hides who the best
+# model predicts well and who it predicts badly. Recomputing that same
+# held-out RMSE (log(y_total_m) scale, best_model = lowest overall validation
+# RMSE) inside each category contrast from section 2 - plus every
+# maxEducLevel - shows where the model is systematically less precise, i.e.
+# which groups its income predictions are biased for. RMSE is left unweighted
+# here, exactly as in section 5, so every bar is comparable to the overall
+# number.
+
+# a. Subgroup RMSE: section 5's formula applied to a slice of the validation
+# set.
+subgroup_rmse <- function(data) {
+    pred <- predict(best_model, newdata = data)
+    sqrt(mean((data$log_inc - pred)^2, na.rm = TRUE))
+}
+
+# b. Binary category contrasts - the pre-filtered validation frames from
+# section 2.
+binary_subgroups <- tibble(
+    category = c("Formality", "Formality", "Gender", "Gender",
+                 "College", "College", "Own-account", "Own-account",
+                 "Transfers", "Transfers"),
+    subgroup = c("Formal", "Informal", "Female", "Male",
+                 "College", "No college", "Cuenta propia",
+                 "No cuenta propia", "Recibe transf.", "No recibe transf."),
+    data = list(validation_formal, validation_informal,
+                validation_female, validation_male,
+                validation_college, validation_nocollege,
+                validation_account, validation_noaccount,
+                validation_transfer, validation_notransfer)
+) |>
+    mutate(n = map_int(data, nrow), rmse = map_dbl(data, subgroup_rmse)) |>
+    select(-data)
+
+# c. maxEducLevel - labelled per the codebook (1 none ... 7 tertiary). Built
+# from the named list in section 2 so each level enters even when it holds
+# only a handful of validation rows (see the n column).
+educ_labels <- c(
+    "1" = "None", "2" = "Preschool", "3" = "Primary (inc.)",
+    "4" = "Primary (comp.)", "5" = "Secondary (inc.)",
+    "6" = "Secondary (comp.)", "7" = "Tertiary"
+)
+
+educ_subgroups <- tibble(
+    category = "Education",
+    subgroup = unname(educ_labels[names(validation_by_educ)]),
+    n        = map_int(validation_by_educ, nrow),
+    rmse     = map_dbl(validation_by_educ, subgroup_rmse)
+)
+
+# d. One long table. Category order is fixed for the plot; education levels
+# keep their least-to-most-schooling order within their own panel.
+subgroup_errors <- bind_rows(binary_subgroups, educ_subgroups) |>
+    mutate(
+        category = factor(category, levels = c(
+            "Formality", "Gender", "College", "Own-account",
+            "Transfers", "Education"
+        )),
+        subgroup = factor(subgroup, levels = c(
+            setdiff(subgroup, educ_labels), unname(educ_labels)
+        ))
+    ) |>
+    arrange(category, subgroup)
+
+overall_rmse <- validation_rmse[[best_model_name]]
+
+view(subgroup_errors)
+
+# e. Bar graph: one panel per category, bars = subgroup validation RMSE,
+# dashed line = overall validation RMSE for reference.
+subgroup_error_plot <- ggplot(
+    subgroup_errors,
+    aes(x = subgroup, y = rmse, fill = category)
+) +
+    geom_col() +
+    geom_hline(yintercept = overall_rmse, linetype = "dashed",
+               colour = "grey35") +
+    geom_text(aes(label = sprintf("%.3f", rmse)), hjust = -0.15, size = 2.8) +
+    coord_flip() +
+    facet_grid(category ~ ., scales = "free_y", space = "free_y",
+               switch = "y") +
+    scale_y_continuous(expand = expansion(mult = c(0, 0.18))) +
+    scale_fill_brewer(palette = "Set2", guide = "none") +
+    labs(
+        title = paste("Validation RMSE by subgroup:",
+                      model_labels[[best_model_name]]),
+        subtitle = sprintf(
+            "Held-out RMSE on log income within each category; dashed line = overall validation RMSE (%.3f)",
+            overall_rmse
+        ),
+        x = NULL, y = "Validation RMSE (log income scale)"
+    ) +
+    theme_minimal() +
+    theme(
+        strip.placement = "outside",
+        strip.text.y.left = element_text(angle = 0),
+        panel.spacing = unit(0.5, "lines")
+    )
+
+ggsave("output/figures/section3_subgroup_rmse.png", subgroup_error_plot,
+       width = 9, height = 7)
+subgroup_error_plot

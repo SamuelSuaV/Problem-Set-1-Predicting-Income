@@ -5,10 +5,10 @@
 % in sync with script/04_age_labor_income.r: re-run that script, recompile this
 % file, done. Nothing is hard-coded here.
 %
-%   - \input ../output/tables/age_income_stats.tex        (numbers as macros)
-%   - \input ../output/tables/age_income_slide_table.tex  (regression table)
-%   - ../output/figures/age_income_profile.png            (fitted profiles)
-%   - ../output/figures/income_dist_age.png               (descriptive motivation)
+%   - \input ../../output/tables/age_income_stats.tex        (numbers as macros)
+%   - \input ../../output/tables/age_income_slide_table.tex  (regression table)
+%   - ../../output/figures/age_income_profile.png            (fitted profiles)
+%   - ../../output/figures/income_dist_age.png               (descriptive motivation)
 %
 % Compile from inside presentation/:  pdflatex age_income_slides.tex
 % Export/submit as age_equipo_XX.pdf (XX = team number; see \teamnumber below).
@@ -39,7 +39,7 @@
 \setbeamerfont{frametitle}{size=\large}
 
 % Key numbers (peak ages, bootstrap CIs, R^2, N, ...) as LaTeX macros.
-\input{../output/tables/age_income_stats.tex}
+\input{../../output/tables/age_income_stats.tex}
 
 \newcommand{\teamnumber}{XX}
 
@@ -113,7 +113,7 @@
 % ---------------------------------------------------------------------------
 \begin{frame}{Evidencia descriptiva: Ingresos medios y pico}
   \centering
-  \includegraphics[height=0.80\textheight]{../output/figures/income_dist_age.png}
+  \includegraphics[height=0.80\textheight]{../../output/figures/income_dist_age.png}
 
   {\footnotesize Líneas punteadas: media ponderada de $\log$ ingreso por rango de
   edad. La media sube de 18--28 a 29--38, se estanca en 39--50 (prácticamente
@@ -146,7 +146,7 @@
 % ---------------------------------------------------------------------------
 \begin{frame}{Comparación de especificaciones}
   \centering
-  {\small \input{../output/tables/age_income_slide_table.tex}}
+  {\small \input{../../output/tables/age_income_slide_table.tex}}
 
   \vspace{0.6em}
   {\footnotesize Errores estándar entre paréntesis. Regresiones ponderadas por
@@ -157,7 +157,7 @@
 % ---------------------------------------------------------------------------
 \begin{frame}{Perfiles edad--ingreso estimados}
   \centering
-  \includegraphics[height=0.78\textheight]{../output/figures/age_income_profile.png}
+  \includegraphics[height=0.78\textheight]{../../output/figures/age_income_profile.png}
 
   {\footnotesize Líneas punteadas: edad pico implícita de cada especificación;
   bandas sombreadas: su IC bootstrap 95\%. Eje vertical en escala logarítmica,

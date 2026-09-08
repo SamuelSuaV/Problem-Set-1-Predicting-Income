@@ -1,34 +1,35 @@
 ###############################################################################
-# Project Name:      Predicting Income
-# Script Name:       06_Income_Prediction_Train.r
-# Authors:           Maria Jose Perez, Juan Manuel Lozano, Samuel Suárez Valle
-# Script Purpose:    Re-estimate the five models from 04_Age_Labor_Income.r and
-#                    05_Gender_Gap.r on the Section 3 training split (subset
-#                    1-7) only, and compare their coefficients against the
-#                    full-sample versions. The fitted training models are
-#                    saved for out-of-sample prediction on subset 8-10 in a
-#                    later script.
+# Nombre del proyecto:  Predicting Income
+# Nombre del script:    06_income_prediction_train.r
+# Autores:              Maria Jose Perez, Juan Manuel Lozano, Samuel Suárez Valle
+# Propósito del script: Reestimar los cinco modelos de 04_age_labor_income.r y
+#                       05_gender_gap.r solo sobre el split de entrenamiento de
+#                       la Sección 3 (subset 1-7), y comparar sus coeficientes
+#                       contra las versiones de muestra completa. Los modelos de
+#                       entrenamiento ajustados se guardan para la predicción
+#                       fuera de muestra sobre el subset 8-10 en un script
+#                       posterior.
 ###############################################################################
 
-# Layout:
-# 1. Load libraries
-# 2. Load data and build model variables
-# 3. Train / full-sample split
-# 4. Re-estimate the five models on the training split and on the full sample
-# 5. Save fitted training models for out-of-sample prediction
-# 6. Full-sample vs. train-only coefficient comparison table
+# Estructura:
+# 1. Cargar librerías
+# 2. Cargar datos y construir las variables del modelo
+# 3. Split entrenamiento / muestra completa
+# 4. Reestimar los cinco modelos en el split de entrenamiento y en la muestra completa
+# 5. Guardar los modelos de entrenamiento ajustados para la predicción fuera de muestra
+# 6. Tabla de comparación de coeficientes muestra completa vs. solo entrenamiento
 
 ################################################################################
 
-# Input:  Clean analysis dataframe from 02_Data_Cleaning.r
-# Output: Fitted training models (output/models/section3_train_models.rds) and
-#         a full-sample vs. train coefficient comparison table
+# Input:  Dataframe de análisis limpio de 02_data_cleaning.r
+# Output: Modelos de entrenamiento ajustados (output/models/section3_train_models.rds) y
+#         una tabla de comparación de coeficientes muestra completa vs. entrenamiento
 #         (output/tables/section3_train_vs_full.tex)
 
 ################################################################################
 
 
-## 1. Load libraries
+## 1. Cargar librerías
 
 library(pacman)
 p_load(
@@ -37,12 +38,12 @@ p_load(
     kableExtra)
 
 
-## 2. Load data and build model variables
+## 2. Cargar datos y construir las variables del modelo
 
-# Same analysis sample and derived variables as 04_Age_Labor_Income.r and
-# 05_Gender_Gap.r: employed adults (already enforced in 02_Data_Cleaning.r)
-# with strictly positive labour income, since log(y_total_m) is undefined at 0
-# and NA for missing income.
+# Misma muestra de análisis y variables derivadas que 04_age_labor_income.r y
+# 05_gender_gap.r: adultos ocupados (ya impuesto en 02_data_cleaning.r) con
+# ingreso laboral estrictamente positivo, porque log(y_total_m) no está definido
+# en 0 y es NA para el ingreso faltante.
 clean_data <- readRDS("data/geih_clean.rds") |>
     filter(y_total_m > 0) |>
     mutate(
@@ -52,25 +53,25 @@ clean_data <- readRDS("data/geih_clean.rds") |>
     )
 
 
-## 3. Train / full-sample split
+## 3. Split entrenamiento / muestra completa
 
-# Section 3 of the problem set validates on scraped chunks the model never
-# saw: subset 1-7 is the training split, subset 8-10 is held out for
-# out-of-sample validation in a later script. Every model below is fit twice
-# - on train_data and on the full clean_data - so we can see how much each
-# coefficient moves once the validation chunks (~30% of the sample) are
-# withheld from estimation.
+# La Sección 3 del problem set valida sobre chunks scrapeados que el modelo nunca
+# vio: el subset 1-7 es el split de entrenamiento, el subset 8-10 se reserva para
+# la validación fuera de muestra en un script posterior. Cada modelo de abajo se
+# ajusta dos veces - sobre train_data y sobre el clean_data completo - para que
+# podamos ver cuánto se mueve cada coeficiente una vez que los chunks de
+# validación (~30% de la muestra) se retiran de la estimación.
 train_data <- clean_data |> filter(subset %in% 1:7)
 
 
-## 4. Re-estimate the five models on the training split and on the full sample
+## 4. Reestimar los cinco modelos en el split de entrenamiento y en la muestra completa
 
-# Same five specifications as 04_Age_Labor_Income.r (model1, model2) and
-# 05_Gender_Gap.r (gap_uncond, gap_hk, gap_hours), weighted by fex_c for the
-# same reason given there: the GEIH is a complex survey, not a simple random
-# sample.
+# Las mismas cinco especificaciones que 04_age_labor_income.r (model1, model2) y
+# 05_gender_gap.r (gap_uncond, gap_hk, gap_hours), ponderadas por fex_c por la
+# misma razón dada allá: la GEIH es una encuesta compleja, no una muestra
+# aleatoria simple.
 
-# a. Age-income profile (04_Age_Labor_Income.r)
+# a. Perfil edad-ingreso (04_age_labor_income.r)
 model1_train <- lm(log_inc ~ age + age2, data = train_data, weights = fex_c)
 model1_full  <- lm(log_inc ~ age + age2, data = clean_data, weights = fex_c)
 
@@ -79,7 +80,7 @@ model2_train <- lm(log_inc ~ age + age2 + totalHoursWorked + factor(relab),
 model2_full  <- lm(log_inc ~ age + age2 + totalHoursWorked + factor(relab),
                     data = clean_data, weights = fex_c)
 
-# b. Gender gap (05_Gender_Gap.r)
+# b. Brecha de género (05_gender_gap.r)
 gap_uncond_train <- lm(log_inc ~ female, data = train_data, weights = fex_c)
 gap_uncond_full  <- lm(log_inc ~ female, data = clean_data, weights = fex_c)
 
@@ -95,8 +96,9 @@ gap_hours_full  <- lm(log_inc ~ female + age + age2 + factor(maxEducLevel) +
                          totalHoursWorked,
                        data = clean_data, weights = fex_c)
 
-# c. Quick check that nothing degenerated when 30% of the sample was dropped
-# (e.g. a relab or maxEducLevel category with too few training observations).
+# c. Chequeo rápido de que nada degeneró cuando se descartó el 30% de la muestra
+# (p. ej. una categoría de relab o maxEducLevel con muy pocas observaciones de
+# entrenamiento).
 summary(model1_train)
 summary(model2_train)
 summary(gap_uncond_train)
@@ -104,11 +106,11 @@ summary(gap_hk_train)
 summary(gap_hours_train)
 
 
-## 5. Save fitted training models for out-of-sample prediction
+## 5. Guardar los modelos de entrenamiento ajustados para la predicción fuera de muestra
 
-# A named list, not five loose objects, so a later validation script can loop
-# over it (predict() each model against the subset 8-10 data) instead of
-# hard-coding five separate calls.
+# Una lista con nombres, no cinco objetos sueltos, para que un script de
+# validación posterior pueda recorrerla (predict() cada modelo contra los datos
+# del subset 8-10) en vez de hardcodear cinco llamadas separadas.
 train_models <- list(
     model1     = model1_train,
     model2     = model2_train,
@@ -121,10 +123,10 @@ dir.create("output/models", recursive = TRUE, showWarnings = FALSE)
 saveRDS(train_models, "output/models/section3_train_models.rds")
 
 
-## 6. Full-sample vs. train-only coefficient comparison table
+## 6. Tabla de comparación de coeficientes muestra completa vs. solo entrenamiento
 
-# a. One row per coefficient, one pair of columns per sample (train vs. full),
-# grouped by model so the two model families don't run together.
+# a. Una fila por coeficiente, un par de columnas por muestra (train vs. full),
+# agrupada por modelo para que las dos familias de modelos no se mezclen.
 compare_model <- function(model_train, model_full) {
     full_join(
         tidy(model_train) |> select(term, estimate, std.error),
@@ -153,9 +155,9 @@ comparison_table <- bind_rows(
 
 view(comparison_table)
 
-# b. Export to LaTeX, same [!h] -> [H] fix as 02_Data_Cleaning.r and
-# 04_Age_Labor_Income.r, so the table holds its place in the compiled
-# write-up (requires \usepackage{float}).
+# b. Exportar a LaTeX, mismo arreglo [!h] -> [H] que 02_data_cleaning.r y
+# 04_age_labor_income.r, para que la tabla mantenga su lugar en el documento
+# compilado (requiere \usepackage{float}).
 force_float_h <- function(x) {
     sub("\\\\begin\\{table\\}\\[!h\\]", "\\\\begin{table}[H]", x)
 }

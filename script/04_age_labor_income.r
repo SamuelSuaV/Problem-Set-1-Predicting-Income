@@ -1,31 +1,31 @@
 ###############################################################################
-# Project Name:      Predicting Income
-# Script Name:       04_Age_Labor_Income.r
-# Authors:           Maria Jose Perez, Juan Manuel Lozano, Samuel Suárez Valle
-# Script Purpose:    Estimate the unconditional and conditional age-labour
-#                    income profiles, the implied peak age of each one and its
-#                    bootstrap confidence interval.
+# Nombre del proyecto:  Predicting Income
+# Nombre del script:    04_age_labor_income.r
+# Autores:              Maria Jose Perez, Juan Manuel Lozano, Samuel Suárez Valle
+# Propósito del script: Estimar los perfiles edad-ingreso laboral incondicional
+#                       y condicional, la edad pico implícita de cada uno y su
+#                       intervalo de confianza bootstrap.
 ###############################################################################
 
-# Layout:
-# 1. Load libraries
-# 2. Load data and build model variables
-# 3. Age-income profile regressions
-# 4. Implied peak age
-# 5. Bootstrap confidence intervals for the peak age
-# 6. Regression table and export to LaTeX
-# 7. Age-income profile plot
+# Estructura:
+# 1. Cargar librerías
+# 2. Cargar datos y construir las variables del modelo
+# 3. Regresiones del perfil edad-ingreso
+# 4. Edad pico implícita
+# 5. Intervalos de confianza bootstrap para la edad pico
+# 6. Tabla de regresión y exportación a LaTeX
+# 7. Gráfico del perfil edad-ingreso
 
 ################################################################################
 
-# Input:  Clean analysis dataframe from 02_Data_Cleaning.r
-# Output: Regression table (output/tables/age_income_regression.tex) and
-#         age-income profile figure (output/figures/age_income_profile.png)
+# Input:  Dataframe de análisis limpio de 02_data_cleaning.r
+# Output: Tabla de regresión (output/tables/age_income_regression.tex) y
+#         figura del perfil edad-ingreso (output/figures/age_income_profile.png)
 
 ################################################################################
 
 
-## 1. Load libraries
+## 1. Cargar librerías
 #install.packages("pacman")
 library(pacman)
 p_load(
@@ -35,28 +35,24 @@ p_load(
     kableExtra,
     fixest)
 
-## 2. Load data and build model variables
+## 2. Cargar datos y construir las variables del modelo
 
 clean_data <- readRDS("data/geih_clean.rds")
 
-# id_hogar identifies a household: directorio is the dwelling and secuencia_p
-# the household within it, so only the pair is unique. We do not cluster on it
-# (see section 3), but it is kept so the clustered alternative can be checked
-# in one line if anyone asks.
-# TEMPORAL: el filtro de maxEducLevel ya quedo en 02_Data_Cleaning.r, pero ese
-# script todavia no se ha vuelto a correr, asi que geih_clean.rds aun trae esa
-# fila. Va aqui tambien para que 04 y 05 corran sobre la misma muestra.
-# Borrar esta condicion cuando 02 se corra de nuevo.
+# id_hogar identifica un hogar: directorio es la vivienda y secuencia_p el hogar
+# dentro de ella, así que solo el par es único. No hacemos cluster por él (ver
+# sección 3), pero se mantiene para que la alternativa con cluster se pueda
+# revisar en una línea si alguien lo pide.
 clean_data <- clean_data |>
-    filter(y_total_m > 0, !is.na(maxEducLevel)) |>
+    filter(y_total_m > 0) |>
     mutate(
       age2     = age^2,
       log_inc  = log(y_total_m),  #creamos una variable de logaritmo del ingreso para poder hacer la regresión
       id_hogar = paste(directorio, secuencia_p, sep = "_")
     )
 
-# relab labels (duplicated from 02_Data_Cleaning.r: every script runs on its
-# own, so the vector defined there is not available here).
+# Etiquetas de relab (duplicadas de 02_data_cleaning.r: cada script corre por su
+# cuenta, así que el vector definido allá no está disponible aquí).
 relab_labels <- c(
   "1" = "Obrero o empleado de empresa particular",
   "2" = "Obrero o empleado del gobierno",
@@ -73,105 +69,107 @@ clean_data |>
   count(relab) |>
   mutate(relab_label = relab_labels[as.character(relab)])
 
-## 3. Age-income profile regressions
+## 3. Regresiones del perfil edad-ingreso
 
-# Every regression below is weighted by fex_c, the person-level expansion
-# factor: the GEIH is a complex survey, not a simple random sample, so the
-# profile we report is a statement about Bogota's workers and not about the
-# 14,764 respondents we happen to observe. This also keeps the section
-# consistent with the weighted descriptives in 03_Data_Description.r.
-# In practice the choice is innocuous here: dropping the weights moves the
-# implied peak age by 0.11 years (model 1) and 0.02 years (model 2), an order
-# of magnitude less than the width of their bootstrap confidence intervals.
+# Toda regresión de abajo se pondera por fex_c, el factor de expansión a nivel de
+# persona: la GEIH es una encuesta compleja, no una muestra aleatoria simple, así
+# que el perfil que reportamos es un enunciado sobre los trabajadores de Bogotá y
+# no sobre los 14,763 encuestados que resultamos observar. Esto también mantiene
+# la sección consistente con los descriptivos ponderados de 03_data_description.r.
+# En la práctica la elección es inocua aquí: quitar los pesos mueve la edad pico
+# implícita en 0.11 años (modelo 1) y 0.02 años (modelo 2), un orden de magnitud
+# menos que el ancho de sus intervalos de confianza bootstrap.
 
-# Standard errors are heteroskedasticity-robust. Income data are markedly
-# heteroskedastic - a salaried employee's income is far more predictable than a
-# self-employed worker's - and ignoring that understates the standard error of
-# beta_age by 24% (classical 0.00325 vs robust 0.00401).
+# Los errores estándar son robustos a heterocedasticidad. Los datos de ingreso
+# son marcadamente heterocedásticos - el ingreso de un asalariado es mucho más
+# predecible que el de un trabajador por cuenta propia - e ignorar eso subestima
+# el error estándar de beta_age en 24% (clásico 0.00325 vs robusto 0.00401).
 #
-# We considered clustering and decided against it, following Abadie, Athey,
+# Consideramos hacer cluster y decidimos no hacerlo, siguiendo a Abadie, Athey,
 # Imbens & Wooldridge, "When Should You Adjust Standard Errors for Clustering?":
-# clustering is justified by how treatment is assigned or how the sample was
-# drawn, not by the mere presence of within-group correlation.
-#   - By household (directorio + secuencia_p): 70% of the sample shares a
-#     household, and the GEIH does interview whole households, but the thought
-#     experiment that assigns age does not operate at the household level. It
-#     would have raised the standard error only 4% anyway (0.00419), because
-#     households average 1.7 people here - too small for clustering to bite.
-#   - By occupation (oficio): would have doubled the standard errors (0.00910)
-#     since those clusters average 187 people, but occupations are neither a
-#     sampling nor an assignment unit, so that correlation reflects an omitted
-#     variable rather than the design.
-# No qualitative conclusion changes under any of these choices.
+# el cluster se justifica por cómo se asigna el tratamiento o cómo se tomó la
+# muestra, no por la mera presencia de correlación dentro de los grupos.
+#   - Por hogar (directorio + secuencia_p): 70% de la muestra comparte hogar, y
+#     la GEIH sí entrevista hogares completos, pero el experimento mental que
+#     asigna la edad no opera a nivel de hogar. Habría subido el error estándar
+#     solo 4% de todas formas (0.00419), porque los hogares promedian 1.7
+#     personas aquí - demasiado pequeños para que el cluster tenga efecto.
+#   - Por ocupación (oficio): habría duplicado los errores estándar (0.00910)
+#     porque esos clusters promedian 187 personas, pero las ocupaciones no son
+#     una unidad de muestreo ni de asignación, así que esa correlación refleja
+#     una variable omitida más que el diseño.
+# Ninguna conclusión cualitativa cambia bajo ninguna de estas elecciones.
 
-# a. Unconditional profile
+# a. Perfil incondicional
 model1 <- feols(log_inc ~ age + age2,
                 data = clean_data, weights = ~fex_c, vcov = "hetero")
 summary(model1) # revisamos el resumen del modelo
 
-# b. Conditional profile: adds total hours worked and employment type, and no
-# other controls (as required by the problem set).
+# b. Perfil condicional: agrega el total de horas trabajadas y el tipo de empleo,
+# y ningún otro control (como lo exige el problem set).
 model2 <- feols(log_inc ~ age + age2 + totalHoursWorked + factor(relab),
                 data = clean_data, weights = ~fex_c, vcov = "hetero")
 summary(model2) # revisamos el resumen del modelo
 
 
-## 4. Implied peak age
+## 4. Edad pico implícita
 
-# The profile is a parabola, so the predicted income peaks where its slope is
-# zero: age* = -beta_age / (2 * beta_age2).
+# El perfil es una parábola, así que el ingreso predicho alcanza su máximo donde
+# su pendiente es cero: age* = -beta_age / (2 * beta_age2).
 
-# a. Unconditional profile
+# a. Perfil incondicional
 peak_age1 <- -coef(model1)["age"] / (2 * coef(model1)["age2"])
 
-# b. Conditional profile
+# b. Perfil condicional
 peak_age2 <- -coef(model2)["age"] / (2 * coef(model2)["age2"])
 
 
-## 5. Bootstrap confidence intervals for the peak age
+## 5. Intervalos de confianza bootstrap para la edad pico
 
-B <- 5000 # number of bootstrap samples
+B <- 5000 # número de muestras bootstrap
 
-# Each replicate refits the same weighted specification as in section 3, so the
-# bootstrap distribution is centred on the estimates we actually report.
+# Cada réplica reajusta la misma especificación ponderada de la sección 3, así
+# que la distribución bootstrap está centrada en las estimaciones que realmente
+# reportamos.
 #
-# The resampling unit is the individual, matching the heteroskedasticity-robust
-# standard errors of section 3: the ordinary pairs bootstrap is asymptotically
-# equivalent to the robust (White) variance estimator, so the two agree by
-# construction rather than by coincidence.
+# La unidad de remuestreo es el individuo, en línea con los errores estándar
+# robustos a heterocedasticidad de la sección 3: el pairs bootstrap ordinario es
+# asintóticamente equivalente al estimador de varianza robusto (White), así que
+# los dos coinciden por construcción y no por coincidencia.
 
-# a. Unconditional profile
+# a. Perfil incondicional
 peak_age_stat1 <- function(data, index) {
   model <- feols(log_inc ~ age + age2,
                  data = data[index, ], weights = ~fex_c)
   unname(-coef(model)["age"] / (2 * coef(model)["age2"]))
 }
 
-set.seed(123) # for reproducibility
+set.seed(123) # para reproducibilidad
 boot_peak_age1 <- boot(clean_data, peak_age_stat1, R = B)
 boot_peak_age1          # original, bias y std. error bootstrap
 sd(boot_peak_age1$t)    # sd bootstrap (equivalente al "std. error" de arriba)
 boot.ci(boot_peak_age1, type = "perc")  # IC 95%
 
 
-# b. Conditional profile
+# b. Perfil condicional
 peak_age_stat2 <- function(data, index) {
   model <- feols(log_inc ~ age + age2 + totalHoursWorked + factor(relab),
                  data = data[index, ], weights = ~fex_c)
   unname(-coef(model)["age"] / (2 * coef(model)["age2"]))
 }
 
-set.seed(123) # for reproducibility
+set.seed(123) # para reproducibilidad
 boot_peak_age2 <- boot(clean_data, peak_age_stat2, R = B)
 boot_peak_age2
 sd(boot_peak_age2$t)
 boot.ci(boot_peak_age2, type = "perc")  # IC 95%
 
 
-## 6. Regression table and export to LaTeX
+## 6. Tabla de regresión y exportación a LaTeX
 
-# a. One row per coefficient, one pair of columns per specification. Terms that
-# only appear in the conditional model are left as NA on the model 1 side.
+# a. Una fila por coeficiente, un par de columnas por especificación. Los
+# términos que solo aparecen en el modelo condicional quedan como NA del lado del
+# modelo 1.
 table_regression <- full_join(
   tidy(model1) |> select(term, estimate, std.error),
   tidy(model2) |> select(term, estimate, std.error),
@@ -179,8 +177,8 @@ table_regression <- full_join(
   suffix = c("_model1", "_model2")
 )
 
-# b. Extra rows the coefficient table does not carry: peak age, its bootstrap
-# CI and the in-sample fit measure required by the problem set.
+# b. Filas extra que la tabla de coeficientes no trae: edad pico, su IC bootstrap
+# y la medida de ajuste dentro de muestra que exige el problem set.
 extra_rows <- tibble(
   term = c("Peak age", "Peak age CI lower", "Peak age CI upper", "R-squared"),
   estimate_model1 = c(
@@ -202,9 +200,10 @@ extra_rows <- tibble(
 table_regression <- bind_rows(table_regression, extra_rows)
 view(table_regression)
 
-# c. Export to LaTeX, same pattern as 02_Data_Cleaning.r: kbl with booktabs,
-# forcing [H] instead of kableExtra's [!h] so the table cannot float past its
-# own section in the compiled write-up (requires \usepackage{float}).
+# c. Exportar a LaTeX, mismo patrón que 02_data_cleaning.r: kbl con booktabs,
+# forzando [H] en vez del [!h] de kableExtra para que la tabla no pueda flotar
+# más allá de su propia sección en el documento compilado (requiere
+# \usepackage{float}).
 force_float_h <- function(x) {
   sub("\\\\begin\\{table\\}\\[!h\\]", "\\\\begin{table}[H]", x)
 }
@@ -218,9 +217,10 @@ table_regression_tex <- table_regression |>
     `SE (Model 2)` = std.error_model2
   ) |>
   kbl(
-    # NOTE: with digits = 4 the SE of age2 prints as 0.0000 (its real value is
-    # ~0.0000376, too small for 4 decimals) - revisit before using this table
-    # in the slides (more decimals for that row only, or scientific notation).
+    # NOTA: con digits = 4 el SE de age2 se imprime como 0.0000 (su valor real es
+    # ~0.0000376, demasiado pequeño para 4 decimales) - revisar antes de usar
+    # esta tabla en las diapositivas (más decimales solo para esa fila, o
+    # notación científica).
     format = "latex", booktabs = TRUE, digits = 4,
     caption = "Age-income profile: unconditional vs. conditional",
     label = "age_income"
@@ -231,14 +231,15 @@ table_regression_tex <- table_regression |>
 
 writeLines(table_regression_tex, "output/tables/age_income_regression.tex")
 
-# d. Slide-ready exports for the Section 1 deck
-# (presentation/age_income_slides.r -> ... /age_income_slides.tex). Two files,
-# both regenerated on every run so the slides stay in sync with this script:
-#   - age_income_stats.tex: the key numbers as LaTeX macros, \input in the
-#     deck's preamble and used on the "Resultado principal" slide.
-#   - age_income_slide_table.tex: a clean regression table (no float wrapper,
-#     relab dummies collapsed to a single fixed-effects row, age2 with enough
-#     decimals to show its SE), \input inside a frame.
+# d. Exportaciones listas para el deck de la Sección 1
+# (presentation/age_income_slides.r -> ... /age_income_slides.tex). Dos archivos,
+# ambos regenerados en cada corrida para que las diapositivas queden en sync con
+# este script:
+#   - age_income_stats.tex: los números clave como macros de LaTeX, con \input en
+#     el preámbulo del deck y usados en la diapositiva "Resultado principal".
+#   - age_income_slide_table.tex: una tabla de regresión limpia (sin envoltura de
+#     float, dummies de relab colapsadas en una sola fila de efectos fijos, age2
+#     con suficientes decimales para mostrar su SE), con \input dentro de un frame.
 
 ci1 <- boot.ci(boot_peak_age1, type = "perc")$percent[4:5]
 ci2 <- boot.ci(boot_peak_age2, type = "perc")$percent[4:5]
@@ -309,28 +310,29 @@ slide_tbl_tex <- slide_tbl |>
 writeLines(slide_tbl_tex, "output/tables/age_income_slide_table.tex")
 
 
-## 7. Age-income profile plot
+## 7. Gráfico del perfil edad-ingreso
 
-# a. Age grid. It stops at 70 rather than at the sample maximum of 91: the
-# 99th percentile of age is 71, so beyond that the curve is fitted on about 1%
-# of the observations (16 people are older than 80). Plotting to 91 would give
-# a third of the chart's width to that 1% and let an extrapolation artefact -
-# the parabola diving - dominate the picture.
+# a. Grilla de edad. Se detiene en 70 y no en el máximo muestral de 91: el
+# percentil 99 de la edad es 71, así que más allá de eso la curva se ajusta sobre
+# cerca del 1% de las observaciones (16 personas tienen más de 80). Graficar
+# hasta 91 le daría un tercio del ancho del gráfico a ese 1% y dejaría que un
+# artefacto de extrapolación - la parábola cayendo en picada - dominara la
+# imagen.
 age_max_plot <- 70
 age_grid <- seq(min(clean_data$age), age_max_plot, by = 1)
 
-# b. Unconditional profile: model1 only depends on age, nothing else to hold
-# fixed.
+# b. Perfil incondicional: model1 solo depende de la edad, nada más que fijar.
 profile1 <- tibble(age = age_grid, age2 = age_grid^2)
 profile1$log_inc_pred <- predict(model1, newdata = profile1)
 
-# c. Conditional profile: model2 also depends on totalHoursWorked and relab, so
-# we hold them at a "reference worker" (average hours, most frequent relab
-# category) and vary age only. Since the model has no interactions with age,
-# this choice only shifts the curve vertically: it changes neither its shape
-# nor the peak age, so the comparison below is robust to it.
+# c. Perfil condicional: model2 también depende de totalHoursWorked y relab, así
+# que los fijamos en un "trabajador de referencia" (horas promedio, categoría de
+# relab más frecuente) y variamos solo la edad. Como el modelo no tiene
+# interacciones con la edad, esta elección solo desplaza la curva verticalmente:
+# no cambia ni su forma ni la edad pico, así que la comparación de abajo es
+# robusta a ella.
 ref_hours <- mean(clean_data$totalHoursWorked, na.rm = TRUE)
-ref_relab <- 1  # Obrero o empleado de empresa particular (most common category)
+ref_relab <- 1  # Obrero o empleado de empresa particular (categoría más común)
 
 profile2 <- tibble(
   age = age_grid,
@@ -340,21 +342,23 @@ profile2 <- tibble(
 )
 profile2$log_inc_pred <- predict(model2, newdata = profile2)
 
-# d. Both profiles in one data frame so they can be plotted side by side.
+# d. Ambos perfiles en un solo data frame para poder graficarlos lado a lado.
 profiles <- bind_rows(
   profile1 |> mutate(model = "Unconditional"),
   profile2 |> mutate(model = "Conditional")
 )
 
-# e. Plot both curves, marking each specification's peak age with a dashed line
-# and shading the 95% bootstrap percentile CI for that peak age (ci1/ci2 from
-# section 6d, the same interval reported in the regression table and the
-# Section 1 deck) as a vertical band. No band is drawn around the curves
-# themselves: the section's uncertainty statement is about the peak age, not
-# the fitted profile. Only the shape and the peak age are comparable across
-# curves: their vertical position depends on the reference worker chosen above.
-# lab_hjust pushes each peak label away from the other: the two peaks are only
-# about three years apart, so centred labels would overlap.
+# e. Graficar ambas curvas, marcando la edad pico de cada especificación con una
+# línea punteada y sombreando el IC percentil bootstrap 95% de esa edad pico
+# (ci1/ci2 de la sección 6d, el mismo intervalo reportado en la tabla de
+# regresión y en el deck de la Sección 1) como una banda vertical. No se dibuja
+# ninguna banda alrededor de las curvas mismas: el enunciado de incertidumbre de
+# la sección es sobre la edad pico, no sobre el perfil ajustado. Solo la forma y
+# la edad pico son comparables entre curvas: su posición vertical depende del
+# trabajador de referencia elegido arriba.
+# lab_hjust empuja cada etiqueta de pico lejos de la otra: los dos picos están
+# apenas a unos tres años de distancia, así que etiquetas centradas se
+# traslaparían.
 peaks <- tibble(
   model = c("Unconditional", "Conditional"),
   peak_age = c(unname(peak_age1), unname(peak_age2)),
@@ -363,14 +367,15 @@ peaks <- tibble(
 ) |>
   mutate(lab_hjust = if_else(peak_age == min(peak_age), 1.1, -0.1))
 
-# The outcome is in logs, which nobody can read off an axis, so the breaks sit
-# at round peso amounts (doubling, the natural spacing on a log scale) and are
-# labelled in pesos. The curves are unchanged; only the axis becomes legible.
+# El resultado está en logs, que nadie puede leer de un eje, así que los breaks
+# se ubican en montos redondos de pesos (duplicando, el espaciado natural en
+# escala log) y se etiquetan en pesos. Las curvas no cambian; solo el eje se
+# vuelve legible.
 peso_breaks <- c(6e5, 8e5, 1e6, 1.5e6, 2e6, 3e6)
 peso_labels <- c("$600K", "$800K", "$1.0M", "$1.5M", "$2.0M", "$3.0M")
 
-# Each curve is labelled on itself, so identity never depends on matching a
-# colour back to a legend.
+# Cada curva se etiqueta sobre sí misma, así que la identidad nunca depende de
+# emparejar un color con una leyenda.
 series_labels <- profiles |>
   group_by(model) |>
   slice_max(age, n = 1) |>

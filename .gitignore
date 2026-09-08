@@ -1,11 +1,30 @@
 # Ignore exact R session files.
 .Rhistory
 .RData
+Rplots.pdf
 
 # Ignore root-level RStudio and generated-output folders.
 /.Rproj.user/
 /temp/
+/temporary/
 /img/
+
+# macOS folder metadata.
+.DS_Store
+
+# LaTeX / beamer build artifacts (only the .tex sources are tracked).
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.nav
+*.out
+*.snm
+*.synctex.gz
+*.toc
+*.vrb
 
 # Ignore all `.pdf`, `.qmd`, and `.html` files.
 *.pdf

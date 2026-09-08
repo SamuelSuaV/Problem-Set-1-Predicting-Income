@@ -1,40 +1,41 @@
 ###############################################################################
-# Project Name:      Predicting Income
-# Script Name:       07_Income_Prediction_Validation.r
-# Authors:           Maria Jose Perez, Juan Manuel Lozano, Samuel Suárez Valle
-# Script Purpose:    Add five additional income-prediction specifications to
-#                    the five models from 04_Age_Labor_Income.r and
-#                    05_Gender_Gap.r (trained in 06_income_prediction_train.r),
-#                    compare all ten by validation-set RMSE, AIC, BIC and an
-#                    exact leave-one-out CV via the leverage shortcut, and
-#                    plot the variable importance of the best model.
+# Nombre del proyecto:  Predicting Income
+# Nombre del script:    07_income_prediction_validation.r
+# Autores:              Maria Jose Perez, Juan Manuel Lozano, Samuel Suárez Valle
+# Propósito del script: Agregar cinco especificaciones adicionales de predicción
+#                       del ingreso a los cinco modelos de 04_age_labor_income.r
+#                       y 05_gender_gap.r (entrenados en
+#                       06_income_prediction_train.r), comparar los diez por RMSE
+#                       de validación, AIC, BIC y una CV leave-one-out exacta vía
+#                       el atajo de leverage, y graficar la importancia de
+#                       variables del mejor modelo.
 ###############################################################################
 
-# Layout:
-# 1. Load libraries
-# 2. Load data and build model variables (train / validation split)
-# 3. Five additional specifications (economic justification in comments)
-# 4. Combine with the Section 1/2 models from 06_income_prediction_train.r
-# 5. Validation-set RMSE
-# 6. In-sample fit: AIC and BIC
-# 7. Leave-one-out CV via the leverage shortcut
-# 8. Model comparison table and export to LaTeX
-# 9. Variable importance for the best model (standardized |beta|) and plot
-# 10. Validation RMSE by subgroup for the best model (bias check) and bar plot
+# Estructura:
+# 1. Cargar librerías
+# 2. Cargar datos y construir las variables del modelo (split train / validación)
+# 3. Cinco especificaciones adicionales (justificación económica en los comentarios)
+# 4. Combinar con los modelos de las Secciones 1/2 de 06_income_prediction_train.r
+# 5. RMSE del conjunto de validación
+# 6. Ajuste dentro de muestra: AIC y BIC
+# 7. CV leave-one-out vía el atajo de leverage
+# 8. Tabla de comparación de modelos y exportación a LaTeX
+# 9. Importancia de variables del mejor modelo (|beta| estandarizado) y gráfico
+# 10. RMSE de validación por subgrupo para el mejor modelo (chequeo de sesgo) y gráfico de barras
 
 ################################################################################
 
-# Input:  Clean analysis dataframe from 02_Data_Cleaning.r and the training
-#         models saved by 06_income_prediction_train.r
-# Output: Model comparison table (output/tables/section3_model_comparison.tex),
-#         variable-importance figure
-#         (output/figures/section3_variable_importance.png) and subgroup
-#         validation-RMSE figure (output/figures/section3_subgroup_rmse.png)
+# Input:  Dataframe de análisis limpio de 02_data_cleaning.r y los modelos de
+#         entrenamiento guardados por 06_income_prediction_train.r
+# Output: Tabla de comparación de modelos (output/tables/section3_model_comparison.tex),
+#         figura de importancia de variables
+#         (output/figures/section3_variable_importance.png) y figura del
+#         RMSE de validación por subgrupo (output/figures/section3_subgroup_rmse.png)
 
 ################################################################################
 
 
-## 1. Load libraries
+## 1. Cargar librerías
 
 library(pacman)
 p_load(
@@ -43,12 +44,12 @@ p_load(
     kableExtra)
 
 
-## 2. Load data and build model variables (train / validation split)
+## 2. Cargar datos y construir las variables del modelo (split train / validación)
 
-# Same analysis sample as 04_Age_Labor_Income.r, 05_Gender_Gap.r and
-# 06_income_prediction_train.r: employed adults with strictly positive labour
-# income. Two extra derived variables feed the additional specifications in
-# section 3 below.
+# Misma muestra de análisis que 04_age_labor_income.r, 05_gender_gap.r y
+# 06_income_prediction_train.r: adultos ocupados con ingreso laboral
+# estrictamente positivo. Dos variables derivadas extra alimentan las
+# especificaciones adicionales de la sección 3 de abajo.
 clean_data <- readRDS("data/geih_clean.rds") |>
     filter(y_total_m > 0) |>
     mutate(
@@ -56,26 +57,27 @@ clean_data <- readRDS("data/geih_clean.rds") |>
         log_inc = log(y_total_m),
         female  = as.numeric(sex == 0),
         # p6585s3: "¿el mes pasado recibió subsidio familiar?" (1 = sí,
-        # 2/9 = no/no sabe). Only asked of dependent workers, so ~32% of the
-        # sample is NA - kept as its own "No aplica" category (not dropped)
-        # so those rows still enter every model, and because the missingness
-        # itself proxies for a non-salaried employment relationship.
+        # 2/9 = no/no sabe). Solo se pregunta a trabajadores dependientes, así
+        # que ~32% de la muestra es NA - se mantiene como su propia categoría
+        # "No aplica" (no se descarta) para que esas filas igual entren a cada
+        # modelo, y porque la ausencia misma sirve de proxy de una relación
+        # laboral no asalariada.
         subsidio_familiar = case_when(
             p6585s3 == 1        ~ "Sí",
             p6585s3 %in% c(2, 9) ~ "No",
             TRUE                 ~ "No aplica"
         ) |> factor(levels = c("No", "Sí", "No aplica")),
         # p7505: recibió dinero de otros hogares/personas/instituciones en los
-        # últimos 12 meses (1 = sí, 2 = no); no missing values.
+        # últimos 12 meses (1 = sí, 2 = no); sin valores faltantes.
         recibe_transferencias = as.numeric(p7505 == 1)
     )
 
-# Section 3's train (1-7) / validation (8-10) split, same key used in
-# 06_income_prediction_train.r.
+# El split train (1-7) / validación (8-10) de la Sección 3, la misma llave usada
+# en 06_income_prediction_train.r.
 train_data      <- clean_data |> filter(subset %in% 1:7)
 validation_data <- clean_data |> filter(subset %in% 8:10)
 
-# Categoric validation data
+# Datos de validación por categoría
 validation_formal <- validation_data |>
     filter(formal == 1)
 
@@ -106,8 +108,9 @@ validation_transfer <- validation_data |>
 validation_notransfer <- validation_data |>
     filter(recibe_transferencias == 0)
 
-# maxEducLevel has seven ordered levels, so its held-out subgroups are kept
-# in a named list (name = level code) rather than one object per level.
+# maxEducLevel tiene siete niveles ordenados, así que sus subgrupos held-out se
+# guardan en una lista con nombres (nombre = código del nivel) en vez de un
+# objeto por nivel.
 validation_by_educ <- validation_data |>
     filter(!is.na(maxEducLevel)) |>
     group_split(maxEducLevel)
@@ -118,71 +121,77 @@ names(validation_by_educ) <- map_chr(
 
 
 
-## 3. Five additional specifications (economic justification in comments)
+## 3. Cinco especificaciones adicionales (justificación económica en los comentarios)
 
-# All weighted by fex_c, for the same reason as every regression in this
-# project: the GEIH is a complex survey, not a simple random sample.
+# Todas ponderadas por fex_c, por la misma razón que cada regresión de este
+# proyecto: la GEIH es una encuesta compleja, no una muestra aleatoria simple.
 
-# a. Formal-sector / firm-size wage premium, interacted with a college degree.
-# Formal jobs bundle legal protections and access to better-capitalised
-# employers (formal wage premium); larger firms pay more for the same worker
-# (efficiency wages / internal labour markets). The interaction tests whether
-# a college credential is screened/rewarded more strongly once a job is
-# formal, where employers can verify it and pay structures are more rigid.
+# a. Prima salarial del sector formal / tamaño de firma, interactuada con un
+# título universitario. Los trabajos formales agrupan protecciones legales y
+# acceso a empleadores mejor capitalizados (prima salarial formal); las firmas
+# más grandes pagan más por el mismo trabajador (salarios de eficiencia /
+# mercados laborales internos). La interacción prueba si una credencial
+# universitaria se selecciona/premia con más fuerza una vez que un trabajo es
+# formal, donde los empleadores pueden verificarla y las estructuras de pago son
+# más rígidas.
 model3 <- lm(log_inc ~ age + age2 + college + formal + factor(sizeFirm) +
                formal:college,
              data = train_data, weights = fex_c)
 
-# b. Non-wage benefits bundle. The family subsidy (subsidio familiar / cajas
-# de compensación) is a mandated fringe benefit tied to a formal, salaried
-# employment relationship - "good jobs" bundle higher pay and this kind of
-# benefit rather than trading one for the other. The interaction tests
-# whether that benefit's association with pay is larger for college-educated
-# workers, who tend to hold higher-tier jobs within the formal sector.
-# NOTE: factor(maxEducLevel) is deliberately left out here - in this dataset
-# `college` is exactly `maxEducLevel == 6` (not level 7, despite the name),
-# so including both is perfectly collinear and lm() aliases a coefficient to
-# NA. maxEducLevel's gradient is already covered by gap_hk/gap_hours (05) and
-# model7 below, so college alone is the education control here.
+# b. Paquete de beneficios no salariales. El subsidio familiar (cajas de
+# compensación) es una prestación obligatoria atada a una relación laboral
+# formal y asalariada - los "buenos trabajos" agrupan mayor pago y este tipo de
+# beneficio en vez de cambiar uno por otro. La interacción prueba si la
+# asociación de ese beneficio con el pago es mayor para los trabajadores con
+# educación universitaria, que tienden a ocupar trabajos de mayor nivel dentro
+# del sector formal.
+# NOTA: factor(maxEducLevel) se deja fuera aquí a propósito - en este dataset
+# `college` es exactamente `maxEducLevel == 6` (no el nivel 7, a pesar del
+# nombre), así que incluir ambos es perfectamente colineal y lm() aliasea un
+# coeficiente a NA. El gradiente de maxEducLevel ya está cubierto por
+# gap_hk/gap_hours (05) y model7 abajo, así que college solo es el control de
+# educación aquí.
 model4 <- lm(log_inc ~ age + age2 + college + factor(sizeFirm) +
                subsidio_familiar + subsidio_familiar:college,
              data = train_data, weights = fex_c)
 
-# c. Self-employment penalty, interacted with a college degree. Own-account
-# work is, on average, a subsistence-income penalty (liquidity constraints,
-# no employer-provided benefits), but college-educated own-account workers
-# (independent professionals/consultants) are a different population from
-# subsistence self-employment, so the penalty should be smaller - or
-# reversed - for them.
+# c. Penalidad del trabajo por cuenta propia, interactuada con un título
+# universitario. El trabajo por cuenta propia es, en promedio, una penalidad de
+# ingreso de subsistencia (restricciones de liquidez, sin beneficios provistos
+# por el empleador), pero los trabajadores por cuenta propia con educación
+# universitaria (profesionales/consultores independientes) son una población
+# distinta del trabajo por cuenta propia de subsistencia, así que la penalidad
+# debería ser menor - o revertirse - para ellos.
 model5 <- lm(log_inc ~ age + age2 + college + cuentaPropia +
                cuentaPropia:college,
              data = train_data, weights = fex_c)
 
-# d. Labour-supply / reservation-wage effect of external transfers. Standard
-# labour-supply theory: non-labour income (remittances, help from other
-# households) raises the reservation wage and can dampen labour-supply
-# intensity (an income effect on hours). totalHoursWorked enters with a
-# quadratic to allow diminishing (or reversing) returns to extra hours - most
-# salaried jobs have a flat/overtime-capped hours-pay relationship - and its
-# interaction with recibe_transferencias tests whether the hours-income
-# relationship is flatter for workers cushioned by outside transfers.
+# d. Efecto de oferta laboral / salario de reserva de las transferencias
+# externas. Teoría estándar de oferta laboral: el ingreso no laboral (remesas,
+# ayuda de otros hogares) sube el salario de reserva y puede amortiguar la
+# intensidad de la oferta laboral (un efecto ingreso sobre las horas).
+# totalHoursWorked entra con un cuadrático para permitir retornos decrecientes
+# (o que se revierten) a las horas extra - la mayoría de los trabajos asalariados
+# tienen una relación horas-pago plana / con tope de horas extra - y su
+# interacción con recibe_transferencias prueba si la relación horas-ingreso es
+# más plana para los trabajadores amortiguados por transferencias externas.
 model6 <- lm(log_inc ~ age + age2 + female + totalHoursWorked +
                I(totalHoursWorked^2) + recibe_transferencias +
                recibe_transferencias:totalHoursWorked,
              data = train_data, weights = fex_c)
 
-# e. Gender gap in returns to education. 05_Gender_Gap.r's gap_hk holds
-# education fixed as a single level shift; this specification lets each
-# maxEducLevel category carry its own gender gap, testing whether returns to
-# schooling diverge by sex (e.g. a "glass ceiling" that widens with
-# credentials, or a motherhood penalty concentrated among more educated
-# women).
+# e. Brecha de género en los retornos a la educación. El gap_hk de
+# 05_gender_gap.r mantiene la educación fija como un solo desplazamiento de
+# nivel; esta especificación deja que cada categoría de maxEducLevel lleve su
+# propia brecha de género, probando si los retornos a la escolaridad divergen por
+# sexo (p. ej. un "techo de cristal" que se ensancha con las credenciales, o una
+# penalidad por maternidad concentrada entre las mujeres más educadas).
 model7 <- lm(log_inc ~ female + age + age2 + factor(maxEducLevel) +
                female:factor(maxEducLevel),
              data = train_data, weights = fex_c)
 
 
-## 4. Combine with the Section 1/2 models from 06_income_prediction_train.r
+## 4. Combinar con los modelos de las Secciones 1/2 de 06_income_prediction_train.r
 
 section12_models <- readRDS("output/models/section3_train_models.rds")
 
@@ -206,58 +215,61 @@ model_labels <- c(
 )
 
 
-## 5. Validation-set RMSE
+## 5. RMSE del conjunto de validación
 
-# predict() on subset 8-10, which none of the ten models saw during fitting.
-# RMSE is computed on the log(y_total_m) scale every model is estimated on,
-# so it is directly comparable across all ten specifications - converting
-# back to pesos would need a retransformation correction (e.g. Duan's
-# smearing estimator), which is out of scope here. Factor levels were
-# checked beforehand: validation_data has no category (relab, sizeFirm,
-# maxEducLevel, ...) absent from train_data, so predict() cannot fail on an
-# unseen level here.
+# predict() sobre el subset 8-10, que ninguno de los diez modelos vio durante el
+# ajuste. El RMSE se calcula en la escala de log(y_total_m) en la que se estima
+# cada modelo, así que es directamente comparable entre las diez
+# especificaciones - convertir de vuelta a pesos necesitaría una corrección de
+# retransformación (p. ej. el estimador de smearing de Duan), que está fuera de
+# alcance aquí. Los niveles de los factores se revisaron de antemano:
+# validation_data no tiene ninguna categoría (relab, sizeFirm, maxEducLevel, ...)
+# ausente de train_data, así que predict() no puede fallar por un nivel no visto
+# aquí.
 validation_rmse <- map_dbl(all_models, function(model) {
     pred <- predict(model, newdata = validation_data)
     sqrt(mean((validation_data$log_inc - pred)^2, na.rm = TRUE))
 })
 
 
-## 6. In-sample fit: AIC and BIC
+## 6. Ajuste dentro de muestra: AIC y BIC
 
-# From the same training fit used for validation prediction, so AIC, BIC and
-# validation RMSE all describe the same fitted object. Because every model is
-# fit by weighted least squares (weights = fex_c), AIC/BIC use the
-# weighted-Gaussian log-likelihood implied by those weights - internally
-# consistent across all ten models since they all carry the same weights.
+# Del mismo ajuste de entrenamiento usado para la predicción de validación, así
+# que AIC, BIC y el RMSE de validación describen todos el mismo objeto ajustado.
+# Como cada modelo se ajusta por mínimos cuadrados ponderados (weights = fex_c),
+# AIC/BIC usan la log-verosimilitud gaussiana ponderada implicada por esos pesos
+# - internamente consistente entre los diez modelos porque todos llevan los
+# mismos pesos.
 fit_stats <- all_models |>
     map(glance) |>
     list_rbind(names_to = "model") |>
     select(model, AIC, BIC)
 
 
-## 7. Leave-one-out CV via the leverage shortcut
+## 7. CV leave-one-out vía el atajo de leverage
 
-# Exact LOOCV would refit every model once per left-out training observation
-# (~10,000 refits each). For least squares - ordinary or weighted, as used
-# here - that is unnecessary: leaving out observation i and refitting gives
-# exactly the same residual as
+# La LOOCV exacta reajustaría cada modelo una vez por cada observación de
+# entrenamiento dejada fuera (~10,000 reajustes cada uno). Para mínimos cuadrados
+# - ordinarios o ponderados, como aquí - eso es innecesario: dejar fuera la
+# observación i y reajustar da exactamente el mismo residuo que
 #     e_(i) = e_i / (1 - h_ii)
-# where e_i is that observation's residual from the single fit on the full
-# training data, and h_ii is its leverage - the i-th diagonal of the hat
-# matrix, i.e. how much weight the fit puts on its own value when smoothing.
-# hatvalues() already accounts for the fex_c weights each model was fit with,
-# so squaring and averaging e_(i) across observations reproduces the RMSE
-# that n separate leave-one-out regressions would give, from one regression
-# instead of n.
+# donde e_i es el residuo de esa observación del único ajuste sobre todos los
+# datos de entrenamiento, y h_ii es su leverage - la i-ésima diagonal de la hat
+# matrix, es decir cuánto peso pone el ajuste en su propio valor al suavizar.
+# hatvalues() ya tiene en cuenta los pesos fex_c con los que se ajustó cada
+# modelo, así que elevar al cuadrado y promediar e_(i) entre observaciones
+# reproduce el RMSE que darían n regresiones leave-one-out separadas, a partir de
+# una sola regresión en vez de n.
 loocv_rmse <- function(model) {
     h <- hatvalues(model)
     e <- residuals(model)
-    # A factor level with a single training observation (model2's
-    # factor(relab) == 8, n = 1) gives that row h_ii = 1 exactly: removing it
-    # would eliminate its whole category, so its leave-one-out residual is a
-    # 0/0 that is mathematically undefined, not just numerically unstable.
-    # Excluded rather than left to floating-point rounding, which can turn
-    # 0/0 into an arbitrary finite value or Inf depending on rounding direction.
+    # Un nivel de factor con una sola observación de entrenamiento (el
+    # factor(relab) == 8 de model2, n = 1) le da a esa fila h_ii = 1 exacto:
+    # quitarla eliminaría toda su categoría, así que su residuo leave-one-out es
+    # un 0/0 matemáticamente indefinido, no solo numéricamente inestable. Se
+    # excluye en vez de dejarlo al redondeo de punto flotante, que puede
+    # convertir 0/0 en un valor finito arbitrario o Inf según la dirección del
+    # redondeo.
     valid <- (1 - h) > 1e-8
     sqrt(mean((e[valid] / (1 - h[valid]))^2))
 }
@@ -265,7 +277,7 @@ loocv_rmse <- function(model) {
 loocv_rmse_vals <- map_dbl(all_models, loocv_rmse)
 
 
-## 8. Model comparison table and export to LaTeX
+## 8. Tabla de comparación de modelos y exportación a LaTeX
 
 comparison_table <- tibble(
     model            = names(all_models),
@@ -296,18 +308,18 @@ comparison_table_tex <- comparison_table |>
 writeLines(comparison_table_tex, "output/tables/section3_model_comparison.tex")
 
 
-## 9. Variable importance for the best model (standardized |beta|) and plot
+## 9. Importancia de variables del mejor modelo (|beta| estandarizado) y gráfico
 
-# a. Best model = lowest validation RMSE, the criterion the problem set asks
-# the ten specifications to be ranked by.
+# a. Mejor modelo = menor RMSE de validación, el criterio por el que el problem
+# set pide ordenar las diez especificaciones.
 best_model_name <- names(which.min(validation_rmse))
 best_model <- all_models[[best_model_name]]
 
-# b. Standardized coefficients (beta * sd(x) / sd(y)) put continuous
-# variables, dummies and factor levels measured on different scales (years,
-# hours, 0/1 indicators) on the same footing, so their magnitudes are
-# comparable within the plot.
-model_matrix <- model.matrix(best_model)[, -1, drop = FALSE]  # drop intercept
+# b. Los coeficientes estandarizados (beta * sd(x) / sd(y)) ponen a las variables
+# continuas, las dummies y los niveles de factor medidos en escalas distintas
+# (años, horas, indicadores 0/1) en el mismo pie, así que sus magnitudes son
+# comparables dentro del gráfico.
+model_matrix <- model.matrix(best_model)[, -1, drop = FALSE]  # quitar el intercepto
 x_sd <- apply(model_matrix, 2, sd)
 y_sd <- sd(train_data$log_inc)
 
@@ -335,26 +347,26 @@ ggsave("output/figures/section3_variable_importance.png", importance_plot,
 importance_plot
 
 
-## 10. Validation RMSE by subgroup for the best model (bias check)
+## 10. RMSE de validación por subgrupo para el mejor modelo (chequeo de sesgo)
 
-# The single overall validation RMSE from section 5 hides who the best
-# model predicts well and who it predicts badly. Recomputing that same
-# held-out RMSE (log(y_total_m) scale, best_model = lowest overall validation
-# RMSE) inside each category contrast from section 2 - plus every
-# maxEducLevel - shows where the model is systematically less precise, i.e.
-# which groups its income predictions are biased for. RMSE is left unweighted
-# here, exactly as in section 5, so every bar is comparable to the overall
-# number.
+# El único RMSE de validación global de la sección 5 esconde a quién predice bien
+# y a quién predice mal el mejor modelo. Recalcular ese mismo RMSE held-out
+# (escala log(y_total_m), best_model = menor RMSE de validación global) dentro de
+# cada contraste de categoría de la sección 2 - más cada maxEducLevel - muestra
+# dónde el modelo es sistemáticamente menos preciso, es decir para qué grupos sus
+# predicciones de ingreso están sesgadas. El RMSE se deja sin ponderar aquí,
+# exactamente como en la sección 5, así que cada barra es comparable con el
+# número global.
 
-# a. Subgroup RMSE: section 5's formula applied to a slice of the validation
-# set.
+# a. RMSE por subgrupo: la fórmula de la sección 5 aplicada a un slice del
+# conjunto de validación.
 subgroup_rmse <- function(data) {
     pred <- predict(best_model, newdata = data)
     sqrt(mean((data$log_inc - pred)^2, na.rm = TRUE))
 }
 
-# b. Binary category contrasts - the pre-filtered validation frames from
-# section 2.
+# b. Contrastes de categoría binaria - los frames de validación prefiltrados de
+# la sección 2.
 binary_subgroups <- tibble(
     category = c("Formality", "Formality", "Gender", "Gender",
                  "College", "College", "Own-account", "Own-account",
@@ -371,9 +383,10 @@ binary_subgroups <- tibble(
     mutate(n = map_int(data, nrow), rmse = map_dbl(data, subgroup_rmse)) |>
     select(-data)
 
-# c. maxEducLevel - labelled per the codebook (1 none ... 7 tertiary). Built
-# from the named list in section 2 so each level enters even when it holds
-# only a handful of validation rows (see the n column).
+# c. maxEducLevel - etiquetado según el codebook (1 none ... 7 tertiary).
+# Construido a partir de la lista con nombres de la sección 2 para que cada nivel
+# entre incluso cuando tiene solo un puñado de filas de validación (ver la
+# columna n).
 educ_labels <- c(
     "1" = "None", "2" = "Preschool", "3" = "Primary (inc.)",
     "4" = "Primary (comp.)", "5" = "Secondary (inc.)",
@@ -387,8 +400,9 @@ educ_subgroups <- tibble(
     rmse     = map_dbl(validation_by_educ, subgroup_rmse)
 )
 
-# d. One long table. Category order is fixed for the plot; education levels
-# keep their least-to-most-schooling order within their own panel.
+# d. Una sola tabla larga. El orden de las categorías es fijo para el gráfico;
+# los niveles de educación mantienen su orden de menor a mayor escolaridad dentro
+# de su propio panel.
 subgroup_errors <- bind_rows(binary_subgroups, educ_subgroups) |>
     mutate(
         category = factor(category, levels = c(
@@ -405,8 +419,8 @@ overall_rmse <- validation_rmse[[best_model_name]]
 
 view(subgroup_errors)
 
-# e. Bar graph: one panel per category, bars = subgroup validation RMSE,
-# dashed line = overall validation RMSE for reference.
+# e. Gráfico de barras: un panel por categoría, barras = RMSE de validación del
+# subgrupo, línea punteada = RMSE de validación global como referencia.
 subgroup_error_plot <- ggplot(
     subgroup_errors,
     aes(x = subgroup, y = rmse, fill = category)

@@ -1,43 +1,43 @@
 ###############################################################################
-# Project Name:      Predicting Income
-# Script Name:       03_Data_Description.r
-# Authors:           Maria Jose Perez, Juan Manuel Lozano, Samuel Suárez Valle
-# Script Purpose:    Descriptive statistics and exploratory plots for the
-#                    clean GEIH 2018 analysis sample.
+# Nombre del proyecto:  Predicting Income
+# Nombre del script:    03_data_description.r
+# Autores:              Maria Jose Perez, Juan Manuel Lozano, Samuel Suárez Valle
+# Propósito del script: Estadística descriptiva y gráficos exploratorios para la
+#                       muestra de análisis limpia de la GEIH 2018.
 ###############################################################################
 
-# Layout:
-# 1. Load libraries
-# 2. Load data and build labels/groups
-# 3. Helper functions for descriptive tables
-# 4. General descriptive statistics
-# 5. Descriptive statistics by group (sex, age range, formality)
-# 6. Income distribution histograms by group
-# 7. Income vs. age scatter plots by group
-# 8. Export tables to LaTeX
+# Estructura:
+# 1. Cargar librerías
+# 2. Cargar datos y construir etiquetas/grupos
+# 3. Funciones auxiliares para las tablas descriptivas
+# 4. Estadística descriptiva general
+# 5. Estadística descriptiva por grupo (sexo, rango de edad, formalidad)
+# 6. Histogramas de la distribución del ingreso por grupo
+# 7. Diagramas de dispersión ingreso vs. edad por grupo
+# 8. Exportar tablas a LaTeX
 
 ################################################################################
 
-# Input:  Clean analysis dataframe from 02_Data_Cleaning.r
-# Output: Summary statistics tables (output/tables/*.tex) and income
-#         distribution figures (output/figures/*.png)
+# Input:  Dataframe de análisis limpio de 02_data_cleaning.r
+# Output: Tablas de estadísticos de resumen (output/tables/*.tex) y figuras de
+#         la distribución del ingreso (output/figures/*.png)
 
 ################################################################################
 
 
-## 1. Load libraries
+## 1. Cargar librerías
 
 library(pacman)
 
 p_load(
   tidyverse,  # Manipulación de datos y gráficos.
   scales,     # Paletas de color y formato de ejes.
-  kableExtra, # Export tables to LaTeX.
-  srvyr       # Survey design and analysis (weighted descriptives via fex_c).
+  kableExtra, # Exportar tablas a LaTeX.
+  srvyr       # Diseño y análisis de encuestas (descriptivos ponderados vía fex_c).
 )
 
 
-## 2. Load data and build labels/groups
+## 2. Cargar datos y construir etiquetas/grupos
 
 geih_clean <- readRDS("data/geih_clean.rds")
 
@@ -53,7 +53,7 @@ var_labels <- c(
   y_total_m      = "Total monthly income"
 )
 
-# Labels reused from 02_Data_Cleaning.r (same codebook/coding criteria).
+# Etiquetas reutilizadas de 02_data_cleaning.r (mismo codebook/criterios de codificación).
 sex_labels <- c("0" = "Female", "1" = "Male")
 
 educ_labels <- c(
@@ -75,8 +75,8 @@ category_labels <- list(
   formal       = formal_labels
 )
 
-# Four age ranges based on the sample's quartiles, so groups are comparable
-# in size (18-28, 29-38, 39-50, 51-94).
+# Cuatro rangos de edad basados en los cuartiles de la muestra, para que los
+# grupos sean comparables en tamaño (18-28, 29-38, 39-50, 51-94).
 age_breaks <- c(18, 28, 38, 50, 94)
 age_group_labels <- c("18-28", "29-38", "39-50", "51-94")
 
@@ -88,20 +88,22 @@ geih_clean <- geih_clean %>%
     )
   )
 
-# GEIH is a complex survey, not a simple random sample: fex_c (the person-
-# level expansion factor) says how many population individuals each
-# respondent represents. All descriptive tables below are computed on this
-# survey design so they're representative of the population, not just this
-# sample; the histograms and scatter plots in sections 6-7 use fex_c
-# directly as a plotting weight for the same reason.
+# La GEIH es una encuesta compleja, no una muestra aleatoria simple: fex_c (el
+# factor de expansión a nivel de persona) dice a cuántos individuos de la
+# población representa cada encuestado. Todas las tablas descriptivas de abajo se
+# calculan sobre este diseño de encuesta para que sean representativas de la
+# población, no solo de esta muestra; los histogramas y los diagramas de
+# dispersión de las secciones 6-7 usan fex_c directamente como peso de graficación
+# por la misma razón.
 geih_svy <- geih_clean %>% as_survey_design(weights = fex_c)
 
 
-## 3. Helper functions for descriptive tables
+## 3. Funciones auxiliares para las tablas descriptivas
 
-# Weighted (via fex_c) skewness/kurtosis: moments::skewness()/kurtosis()
-# don't take weights, so these reimplement them (moment-based, i.e.
-# kurtosis == 3 for a normal distribution) on weighted central moments.
+# Asimetría/curtosis ponderadas (vía fex_c): moments::skewness()/kurtosis() no
+# aceptan pesos, así que estas las reimplementan (basadas en momentos, es decir
+# curtosis == 3 para una distribución normal) sobre momentos centrales
+# ponderados.
 weighted_skewness <- function(x, w, na.rm = TRUE) {
   if (na.rm) {
     keep <- !is.na(x) & !is.na(w)
@@ -124,26 +126,26 @@ weighted_kurtosis <- function(x, w, na.rm = TRUE) {
   m4 / m2^2
 }
 
-# a. Weighted classic descriptive statistics for continuous variables,
-# optionally by group (design must be a tbl_svy, e.g. geih_svy). n, min and
-# max are reported unweighted (sample size and range aren't population
-# quantities); mean, sd, quantiles, skewness and kurtosis are weighted by
-# fex_c so they're representative of the population. Skewness/(non-excess)
-# kurtosis -- kurtosis == 3 corresponds to a normal distribution -- are
-# included only when moments = TRUE (used for the by-group tables in
-# section 5, not the general table in section 4).
+# a. Estadísticos descriptivos clásicos ponderados para variables continuas,
+# opcionalmente por grupo (design debe ser un tbl_svy, p. ej. geih_svy). n, min y
+# max se reportan sin ponderar (el tamaño de muestra y el rango no son cantidades
+# poblacionales); media, sd, cuantiles, asimetría y curtosis se ponderan por
+# fex_c para que sean representativos de la población. La asimetría/curtosis (no
+# en exceso) -- curtosis == 3 corresponde a una distribución normal -- se
+# incluyen solo cuando moments = TRUE (usado para las tablas por grupo de la
+# sección 5, no para la tabla general de la sección 4).
 describe_continuous <- function(design, vars, group_var = NULL, moments = TRUE) {
   round_vars <- c("mean", "sd", "min", "p25", "median", "p75", "max")
   if (moments) round_vars <- c(round_vars, "skewness", "kurtosis")
 
-  # The .fns list for across() has to be written literally inline here
-  # rather than built in a `stat_funs <- list(...)` variable beforehand:
-  # srvyr's summarise() re-quotes the summarise() call before evaluating it
-  # against the design's underlying data, and a custom function referencing
-  # a bare column symbol (fex_c, for the weighted moments below) inside a
-  # formula stored in a variable loses access to that column ("object
-  # 'fex_c' not found") -- survey_mean()/survey_sd()/survey_quantile()/
-  # unweighted() are unaffected since srvyr handles those specially.
+  # La lista .fns para across() tiene que escribirse literalmente inline aquí en
+  # vez de construirse antes en una variable `stat_funs <- list(...)`: el
+  # summarise() de srvyr re-cita la llamada a summarise() antes de evaluarla
+  # contra los datos subyacentes del diseño, y una función custom que referencia
+  # un símbolo de columna pelado (fex_c, para los momentos ponderados de abajo)
+  # dentro de una fórmula guardada en una variable pierde el acceso a esa columna
+  # ("object 'fex_c' not found") -- survey_mean()/survey_sd()/survey_quantile()/
+  # unweighted() no se ven afectados porque srvyr los maneja de forma especial.
   design %>%
     { if (!is.null(group_var)) group_by(., across(all_of(group_var))) else . } %>%
     summarise(
@@ -174,10 +176,10 @@ describe_continuous <- function(design, vars, group_var = NULL, moments = TRUE) 
     )
 }
 
-# b. Weighted frequency table for categorical variables, optionally by
-# group (design must be a tbl_svy). n is the weighted population-total
-# estimate for the category (via fex_c, rounded to a whole number) and pct
-# its share of the weighted group total.
+# b. Tabla de frecuencias ponderada para variables categóricas, opcionalmente por
+# grupo (design debe ser un tbl_svy). n es el total poblacional estimado y
+# ponderado para la categoría (vía fex_c, redondeado a un entero) y pct su
+# participación en el total ponderado del grupo.
 describe_categorical <- function(design, vars, group_var = NULL) {
   map_df(vars, function(v) {
     d <- design %>% filter(!is.na(.data[[v]]))
@@ -201,7 +203,7 @@ describe_categorical <- function(design, vars, group_var = NULL) {
 }
 
 
-## 4. General descriptive statistics
+## 4. Estadística descriptiva general
 
 general_continuous  <- describe_continuous(geih_svy, continuous_vars, moments = FALSE)
 general_categorical <- describe_categorical(geih_svy, categorical_vars)
@@ -210,14 +212,14 @@ general_continuous
 general_categorical
 
 
-## 5. Descriptive statistics by group
+## 5. Estadística descriptiva por grupo
 
-# The outcome variable (y_total_m) is the only continuous variable compared
-# across groups here, together with skewness/kurtosis (left out of the
-# general table above); the categorical comparison is restricted to
-# formality (informal/formal).
+# La variable de resultado (y_total_m) es la única variable continua comparada
+# entre grupos aquí, junto con asimetría/curtosis (dejadas fuera de la tabla
+# general de arriba); la comparación categórica se restringe a la formalidad
+# (informal/formal).
 
-# a. By sex
+# a. Por sexo
 by_sex_continuous  <- describe_continuous(geih_svy, "y_total_m", "sex") %>%
   mutate(sex = sex_labels[as.character(sex)], .after = sex)
 by_sex_categorical <- describe_categorical(geih_svy, "formal", "sex") %>%
@@ -226,14 +228,14 @@ by_sex_categorical <- describe_categorical(geih_svy, "formal", "sex") %>%
 by_sex_continuous
 by_sex_categorical
 
-# b. By age range
+# b. Por rango de edad
 by_age_continuous  <- describe_continuous(geih_svy, "y_total_m", "age_group")
 by_age_categorical <- describe_categorical(geih_svy, c("sex", "formal"), "age_group")
 
 by_age_continuous
 by_age_categorical
 
-# c. By formality
+# c. Por formalidad
 by_formal_continuous  <- describe_continuous(geih_svy, "y_total_m", "formal") %>%
   mutate(formal = formal_labels[as.character(formal)], .after = formal)
 by_formal_categorical <- describe_categorical(geih_svy, "sex", "formal") %>%
@@ -243,18 +245,18 @@ by_formal_continuous
 by_formal_categorical
 
 
-## 6. Income distribution histograms by group
+## 6. Histogramas de la distribución del ingreso por grupo
 
-# Overlays each group's log-income distribution (semi-transparent), with a
-# dashed vertical line at each group's mean. Both the histogram (via the
-# weight aesthetic) and the means are weighted by fex_c, consistent with the
-# tables above.
-# The x-axis is zoomed to the 0.1%-99.9% quantile range of log-income: with
-# the full range (log ~4 to ~18), a handful of extreme outliers stretch the
-# axis and flatten the histogram, hiding the shape of the bulk of the
-# distribution. Bins are still computed on the full data (via
-# coord_cartesian, not scale limits), so this only zooms the view -- it
-# doesn't drop observations or distort the density.
+# Superpone la distribución del log-ingreso de cada grupo (semitransparente), con
+# una línea vertical punteada en la media de cada grupo. Tanto el histograma (vía
+# la estética weight) como las medias se ponderan por fex_c, consistente con las
+# tablas de arriba.
+# El eje x se acerca al rango de cuantiles 0.1%-99.9% del log-ingreso: con el
+# rango completo (log ~4 a ~18), un puñado de outliers extremos estira el eje y
+# aplana el histograma, escondiendo la forma del grueso de la distribución. Los
+# bins se siguen calculando sobre los datos completos (vía coord_cartesian, no
+# límites de escala), así que esto solo acerca la vista -- no descarta
+# observaciones ni distorsiona la densidad.
 income_xlim <- quantile(
   log(geih_clean$y_total_m), probs = c(0.001, 0.999), na.rm = TRUE
 )
@@ -325,11 +327,11 @@ income_by_age
 income_by_formal
 
 
-## 7. Income vs. age scatter plots by group
+## 7. Diagramas de dispersión ingreso vs. edad por grupo
 
-# Scatter of log-income against age, colored by group, with a fitted straight
-# line (weighted least squares, via fex_c as the regression weight) run
-# separately for each group.
+# Dispersión del log-ingreso contra la edad, coloreada por grupo, con una recta
+# ajustada (mínimos cuadrados ponderados, vía fex_c como peso de la regresión)
+# corrida por separado para cada grupo.
 plot_income_age_scatter <- function(data, group_var, group_labels = NULL, title, filename) {
   d <- data %>%
     filter(!is.na(y_total_m), !is.na(age), !is.na(.data[[group_var]])) %>%
@@ -380,10 +382,10 @@ scatter_income_age_educ
 scatter_income_age_formal
 
 
-## 8. Export tables to LaTeX
+## 8. Exportar tablas a LaTeX
 
-# Nicer headers for the LaTeX tables (falls back to the original name for
-# any column not listed here).
+# Encabezados más bonitos para las tablas LaTeX (vuelve al nombre original para
+# cualquier columna no listada aquí).
 header_map <- c(
   sex          = "Sex",
   age_group    = "Age range",
@@ -409,7 +411,7 @@ export_table_tex <- function(tbl, filename, caption, label) {
   ))
   is_long <- nrow(tbl) > 20
 
-  # scale_down and longtable are mutually exclusive in kableExtra.
+  # scale_down y longtable son mutuamente excluyentes en kableExtra.
   latex_options <- if (is_long) {
     c("hold_position", "repeat_header")
   } else {
@@ -424,11 +426,12 @@ export_table_tex <- function(tbl, filename, caption, label) {
     kable_styling(latex_options = latex_options) %>%
     as.character()
 
-  # kableExtra's hold_position only sets [!h] (a placement hint), which lets
-  # LaTeX float these small tables past their own section into wherever the
-  # next figures (forced to [H]) land, interleaving sections in the output.
-  # Force [H] (requires \usepackage{float} in the including .tex) so every
-  # table renders exactly where it appears in the source.
+  # El hold_position de kableExtra solo pone [!h] (una pista de ubicación), lo
+  # que deja que LaTeX flote estas tablas pequeñas más allá de su propia sección
+  # hacia donde caigan las siguientes figuras (forzadas a [H]), intercalando
+  # secciones en la salida. Forzamos [H] (requiere \usepackage{float} en el .tex
+  # que la incluye) para que cada tabla se renderice exactamente donde aparece
+  # en la fuente.
   tbl_tex <- sub("\\\\begin\\{table\\}\\[!h\\]", "\\\\begin{table}[H]", tbl_tex)
 
   writeLines(tbl_tex, filename)
@@ -470,5 +473,5 @@ export_table_tex(
   "Descriptive statistics by formality: categorical variables", "by-formal-categorical"
 )
 
-################################End of script###################################
+##############################Fin del script####################################
 

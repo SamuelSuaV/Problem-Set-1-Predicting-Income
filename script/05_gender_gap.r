@@ -1,35 +1,35 @@
 ###############################################################################
-# Project Name:      Predicting Income
-# Script Name:       05_Gender_Gap.r
-# Authors:           Maria Jose Perez, Juan Manuel Lozano, Samuel Suárez Valle
-# Script Purpose:    Estimate the unconditional and conditional gender labour
-#                    income gap, recover the gender coefficient via the
-#                    Frisch-Waugh-Lovell decomposition with analytical and
-#                    bootstrap standard errors, and compare the predicted
-#                    age-income profiles of men and women.
+# Nombre del proyecto:  Predicting Income
+# Nombre del script:    05_gender_gap.r
+# Autores:              Maria Jose Perez, Juan Manuel Lozano, Samuel Suárez Valle
+# Propósito del script: Estimar la brecha de ingreso laboral por género
+#                       incondicional y condicional, recuperar el coeficiente de
+#                       género vía la descomposición de Frisch-Waugh-Lovell con
+#                       errores estándar analíticos y bootstrap, y comparar los
+#                       perfiles edad-ingreso predichos de hombres y mujeres.
 ###############################################################################
 
-# Layout:
-# 1. Load libraries
-# 2. Load data and build model variables
-# 3. Gender gap regressions (unconditional and conditional)
-# 4. FWL decomposition of the conditional gender gap
-# 5. Bootstrap standard error for the FWL coefficient
-# 6. Predicted age-income profiles by sex
-# 7. Regression table and export to LaTeX
-# 8. Age-income profile by sex plot
+# Estructura:
+# 1. Cargar librerías
+# 2. Cargar datos y construir las variables del modelo
+# 3. Regresiones de la brecha de género (incondicional y condicional)
+# 4. Descomposición FWL de la brecha de género condicional
+# 5. Error estándar bootstrap para el coeficiente FWL
+# 6. Perfiles edad-ingreso predichos por sexo
+# 7. Tabla de regresión y exportación a LaTeX
+# 8. Gráfico del perfil edad-ingreso por sexo
 
 ################################################################################
 
-# Input:  Clean analysis dataframe from 02_Data_Cleaning.r
-# Output: Regression table (output/tables/gender_gap_regression.tex) and
-#         age-income profile by sex figure
+# Input:  Dataframe de análisis limpio de 02_data_cleaning.r
+# Output: Tabla de regresión (output/tables/gender_gap_regression.tex) y
+#         figura del perfil edad-ingreso por sexo
 #         (output/figures/age_income_profile_sex.png)
 
 ################################################################################
 
 
-## 1. Load libraries
+## 1. Cargar librerías
 
 library(pacman)
 p_load(
@@ -41,18 +41,16 @@ p_load(
     sandwich)
 
 
-## 2. Load data and build model variables
+## 2. Cargar datos y construir las variables del modelo
 
 clean_data <- readRDS("data/geih_clean.rds")
 
-# Same analysis sample as 04_Age_Labor_Income.r: employed adults with strictly
-# positive labour income (zeros and missings cannot enter a log outcome).
-# female is built from the codebook coding of sex (=1 male, =0 female).
-# TEMPORAL: el filtro de maxEducLevel ya quedo en 02_Data_Cleaning.r, pero ese
-# script todavia no se ha vuelto a correr, asi que geih_clean.rds aun trae esa
-# fila. Borrar esta condicion cuando 02 se corra de nuevo.
+# Misma muestra de análisis que 04_age_labor_income.r: adultos ocupados con
+# ingreso laboral estrictamente positivo (los ceros y faltantes no pueden entrar
+# a un resultado en logs).
+# female se construye de la codificación del codebook para sex (=1 hombre, =0 mujer).
 clean_data <- clean_data |>
-  filter(y_total_m > 0, !is.na(maxEducLevel)) |>
+  filter(y_total_m > 0) |>
   mutate(
     age2    = age^2,
     log_inc = log(y_total_m),
@@ -61,45 +59,47 @@ clean_data <- clean_data |>
   )
 
 
-## 3. Gender gap regressions (unconditional and conditional)
+## 3. Regresiones de la brecha de género (incondicional y condicional)
 
-# All regressions are weighted by fex_c, the person-level expansion factor, for
-# the same reason as in 04_Age_Labor_Income.r: the GEIH is a complex survey, so
-# the gap we report is a statement about Bogota's workers, not about the
-# respondents we happen to observe. Standard errors are
-# heteroskedasticity-robust, for the same reason and after the same
-# deliberation as in 04_Age_Labor_Income.r: clustering (by household or by
-# occupation) was considered and rejected, because neither is the level at
-# which the thought experiment assigns sex.
+# Toda regresión se pondera por fex_c, el factor de expansión a nivel de persona,
+# por la misma razón que en 04_age_labor_income.r: la GEIH es una encuesta
+# compleja, así que la brecha que reportamos es un enunciado sobre los
+# trabajadores de Bogotá, no sobre los encuestados que resultamos observar. Los
+# errores estándar son robustos a heterocedasticidad, por la misma razón y tras
+# la misma deliberación que en 04_age_labor_income.r: hacer cluster (por hogar o
+# por ocupación) fue considerado y descartado, porque ninguno es el nivel al que
+# el experimento mental asigna el sexo.
 
-# a. Unconditional gap: the raw difference in mean log income between women and
-# men. It bundles together every channel (education, hours, occupation, ...).
+# a. Brecha incondicional: la diferencia cruda en la media del log-ingreso entre
+# mujeres y hombres. Agrupa todos los canales (educación, horas, ocupación, ...).
 gap_uncond <- feols(log_inc ~ female,
                     data = clean_data, weights = ~fex_c, vcov = "hetero")
 summary(gap_uncond)
 
 
-# b. Conditional gap, human capital controls. Age and education are
-# predetermined with respect to sex, so they are confounders rather than
-# mechanisms: this is our preferred specification and the one used for the FWL
-# decomposition in section 4.
+# b. Brecha condicional, controles de capital humano. La edad y la educación son
+# predeterminadas respecto al sexo, así que son confusores más que mecanismos:
+# esta es nuestra especificación preferida y la que se usa para la descomposición
+# FWL de la sección 4.
 gap_hk <- feols(log_inc ~ female + age + age2 + factor(maxEducLevel),
                 data = clean_data, weights = ~fex_c, vcov = "hetero")
 summary(gap_hk)
 
-# c. Conditional gap, adding hours worked. The mandated outcome (y_total_m) is
-# *monthly* income, which scales mechanically with hours, and women work fewer
-# paid hours on average. Holding hours fixed therefore moves the estimate
-# towards an hourly-pay comparison. Hours are chosen by the worker and are
-# themselves shaped by sex, so this is a post-treatment control: it answers a
-# different question than (b), it does not "improve" on it.
+# c. Brecha condicional, agregando horas trabajadas. El resultado exigido
+# (y_total_m) es el ingreso *mensual*, que escala mecánicamente con las horas, y
+# las mujeres trabajan menos horas pagas en promedio. Mantener las horas fijas
+# por lo tanto mueve la estimación hacia una comparación de pago por hora. Las
+# horas las elige el trabajador y a su vez están moldeadas por el sexo, así que
+# este es un control post-tratamiento: responde una pregunta distinta que (b), no
+# la "mejora".
 gap_hours <- feols(log_inc ~ female + age + age2 + factor(maxEducLevel) +
                      totalHoursWorked,
                    data = clean_data, weights = ~fex_c, vcov = "hetero")
 summary(gap_hours)
 
-# d. Gap in percentage terms: with a log outcome, exp(beta) - 1 converts the
-# coefficient into the proportional income difference between women and men.
+# d. Brecha en términos porcentuales: con un resultado en logs, exp(beta) - 1
+# convierte el coeficiente en la diferencia proporcional de ingreso entre mujeres
+# y hombres.
 gap_pct <- function(model) (exp(coef(model)["female"]) - 1) * 100
 
 gap_pct(gap_uncond)
@@ -111,64 +111,65 @@ gap_pct(gap_hours)
 
 #### FWL
 
-#stage 1: regress income on the controls
+#etapa 1: regresar el ingreso sobre los controles
 stage1_FWL <- feols(log_inc ~ age + age2 + factor(maxEducLevel),
                     data = clean_data, weights = ~fex_c)
 residuals_stage1 <- resid(stage1_FWL)
 
-#stage 2: regress female on controls
+#etapa 2: regresar female sobre los controles
 stage2_FWL <- feols(female ~ age + age2 + factor(maxEducLevel),
                     data = clean_data, weights = ~fex_c)
 residuals_stage2 <- resid(stage2_FWL)
 
-# Both sets of residuals go back into clean_data as columns: stage 3 needs a
-# data frame where feols can find fex_c in order to weight the regression. The
-# rows line up because the analysis sample has no missing values left, so no
-# observation was dropped in stages 1 and 2.
+# Ambos conjuntos de residuos vuelven a clean_data como columnas: la etapa 3
+# necesita un data frame donde feols pueda encontrar fex_c para ponderar la
+# regresión. Las filas calzan porque la muestra de análisis ya no tiene valores
+# faltantes, así que ninguna observación se descartó en las etapas 1 y 2.
 clean_data <- clean_data |>
   mutate(res_income = residuals_stage1, res_female = residuals_stage2)
 
 
-#stage 3: regress residuals of stage 1 on residuals of stage 2
+#etapa 3: regresar los residuos de la etapa 1 sobre los residuos de la etapa 2
 stage3_FWL <- feols(res_income ~ res_female,
                     data = clean_data, weights = ~fex_c, vcov = "hetero")
 summary(stage3_FWL)
 
-# The point estimate matches the full regression exactly: this is what the
-# problem set asks us to explain. Stages 1 and 2 strip out everything the
-# controls account for, so stage 3 identifies the gender coefficient off the
-# variation in female that is orthogonal to age and education - precisely the
-# variation the full regression uses.
+# La estimación puntual coincide exactamente con la regresión completa: esto es
+# lo que el problem set nos pide explicar. Las etapas 1 y 2 remueven todo lo que
+# los controles explican, así que la etapa 3 identifica el coeficiente de género
+# a partir de la variación de female que es ortogonal a la edad y la educación -
+# precisamente la variación que usa la regresión completa.
 c(full = unname(coef(gap_hk)["female"]),
   fwl  = unname(coef(stage3_FWL)["res_female"]))
 
-#degrees of fredom for the full model
+#grados de libertad del modelo completo
 df_full_model <- gap_hk %>%
   degrees_freedom("resid")
 
-# A note on the standard errors: stage 3 reports 0.013203 while the full
-# regression reports 0.013206. They differ because feols only sees two
-# parameters in stage 3 (df = n - 2 = 14,761) and cannot know that stages 1
-# and 2 already spent degrees of freedom on the controls (df = n - k = 14,754).
-# Rescaling the stage-3 standard error by sqrt(14761/14754) = 1.000237 recovers
-# the full-regression one exactly. We report the full regression's standard
-# error, which is the correct one; the 0.02% gap is a bookkeeping artefact of
-# running FWL by hand, not a difference between the two estimators.
+# Una nota sobre los errores estándar: la etapa 3 reporta 0.013203 mientras que
+# la regresión completa reporta 0.013206. Difieren porque feols solo ve dos
+# parámetros en la etapa 3 (df = n - 2 = 14,761) y no puede saber que las etapas
+# 1 y 2 ya gastaron grados de libertad en los controles (df = n - k = 14,754).
+# Reescalar el error estándar de la etapa 3 por sqrt(14761/14754) = 1.000237
+# recupera exactamente el de la regresión completa. Reportamos el error estándar
+# de la regresión completa, que es el correcto; la brecha de 0.02% es un
+# artefacto contable de correr FWL a mano, no una diferencia entre los dos
+# estimadores.
 
- #degrees of fredom for the FWL model
+ #grados de libertad del modelo FWL
   df_FWL_model <- stage3_FWL %>%
   degrees_freedom("resid")
 
 
-#standard errors
+#errores estándar
 ## stage3_FWL
 se_FWL <- se(stage3_FWL)["res_female"]
 
-## full model
+## modelo completo
 se_full_model <- se(gap_hk)["female"]
 
-## rescaling stage 3 by the ratio of degrees of freedom recovers the full
-## regression's standard error exactly
+## reescalar la etapa 3 por la razón de grados de libertad recupera exactamente
+## el error estándar de la regresión completa
 se_FWL_corrected <- se_FWL * sqrt(df_FWL_model / df_full_model)
 
 c(fwl_raw        = unname(se_FWL),
@@ -176,43 +177,45 @@ c(fwl_raw        = unname(se_FWL),
   full_model     = unname(se_full_model))
 
 
-## 5. Bootstrap standard error for the gender coefficient
+## 5. Error estándar bootstrap para el coeficiente de género
 
-# The problem set asks for both analytical and bootstrap standard errors. The
-# analytical one is the robust SE above; this is the bootstrap counterpart.
+# El problem set pide errores estándar tanto analíticos como bootstrap. El
+# analítico es el SE robusto de arriba; este es su contraparte bootstrap.
 #
-# Resampling is at the individual level, matching those robust standard errors:
-# the ordinary pairs bootstrap is asymptotically equivalent to the White
-# variance estimator, so the two should land on the same number.
+# El remuestreo es a nivel de individuo, en línea con esos errores estándar
+# robustos: el pairs bootstrap ordinario es asintóticamente equivalente al
+# estimador de varianza de White, así que los dos deberían caer en el mismo
+# número.
 #
-# We refit the full specification rather than redoing the three FWL stages in
-# every replicate: section 4 showed both give numerically identical gender
-# coefficients, so the extra two regressions per replicate would only cost time.
+# Reajustamos la especificación completa en vez de rehacer las tres etapas FWL en
+# cada réplica: la sección 4 mostró que ambas dan coeficientes de género
+# numéricamente idénticos, así que las dos regresiones extra por réplica solo
+# costarían tiempo.
 
-B <- 5000 # number of bootstrap samples
+B <- 5000 # número de muestras bootstrap
 
-# vcovBS does not accept fixest objects, so the same specification is refitted
-# with lm() purely as a vehicle for the bootstrap. The coefficients are
-# identical to gap_hk; only the class of the object differs.
+# vcovBS no acepta objetos fixest, así que la misma especificación se reajusta
+# con lm() puramente como vehículo para el bootstrap. Los coeficientes son
+# idénticos a gap_hk; solo difiere la clase del objeto.
 gap_hk_lm <- lm(log_inc ~ female + age + age2 + factor(maxEducLevel),
                 data = clean_data, weights = fex_c)
 
-set.seed(123) # for reproducibility
+set.seed(123) # para reproducibilidad
 vcov_boot <- vcovBS(gap_hk_lm, R = B)
 se_boot   <- sqrt(vcov_boot["female", "female"])
 
-# Analytical and bootstrap standard errors side by side.
+# Errores estándar analítico y bootstrap lado a lado.
 c(analytical = unname(se_full_model),
   bootstrap  = unname(se_boot))
 
 
-## 6. Predicted age-income profiles by sex
+## 6. Perfiles edad-ingreso predichos por sexo
 
-# a. The specifications above give men and women the same age profile shifted
-# vertically by the gender dummy, so both would peak at exactly the same age
-# and comparing their peaks would be vacuous. Interacting female with age and
-# age2 lets each sex have its own curvature, which is what the problem set
-# asks us to compare.
+# a. Las especificaciones de arriba les dan a hombres y mujeres el mismo perfil
+# de edad desplazado verticalmente por la dummy de género, así que ambos
+# alcanzarían el pico exactamente a la misma edad y comparar sus picos sería
+# vacuo. Interactuar female con age y age2 deja que cada sexo tenga su propia
+# curvatura, que es lo que el problem set nos pide comparar.
 gap_interact <- feols(
   log_inc ~ female + age + age2 + female:age + female:age2 +
     factor(maxEducLevel),
@@ -220,9 +223,10 @@ gap_interact <- feols(
 )
 summary(gap_interact)
 
-# b. Implied peak age by sex. For men (female = 0) the interactions drop out
-# and the usual formula applies. For women (female = 1) they switch on, so the
-# linear and quadratic terms become the sums below.
+# b. Edad pico implícita por sexo. Para los hombres (female = 0) las
+# interacciones desaparecen y aplica la fórmula usual. Para las mujeres
+# (female = 1) se encienden, así que los términos lineal y cuadrático pasan a ser
+# las sumas de abajo.
 peak_age_by_sex <- function(model) {
   b <- coef(model)
   c(
@@ -234,15 +238,16 @@ peak_age_by_sex <- function(model) {
 
 peak_age_by_sex(gap_interact)
 
-# c. Confidence intervals for the two peak ages. Back to boot() by hand rather
-# than vcovBS: a peak age is a ratio of coefficients, and the sandwich-style
-# functions only return variance matrices for the coefficients themselves.
+# c. Intervalos de confianza para las dos edades pico. Volvemos a boot() a mano
+# en vez de vcovBS: una edad pico es una razón de coeficientes, y las funciones
+# tipo sandwich solo devuelven matrices de varianza para los coeficientes mismos.
 #
-# We also bootstrap the difference between the two peaks. That is the quantity
-# that actually answers whether men and women peak at different ages: the
-# individual interaction coefficients are not significant on their own, but the
-# peak ages are a non-linear combination of them, so their difference has to be
-# tested directly rather than read off those t-statistics.
+# También hacemos bootstrap de la diferencia entre los dos picos. Esa es la
+# cantidad que realmente responde si hombres y mujeres alcanzan el pico a edades
+# distintas: los coeficientes de interacción individuales no son significativos
+# por sí solos, pero las edades pico son una combinación no lineal de ellos, así
+# que su diferencia hay que probarla directamente en vez de leerla de esos
+# estadísticos t.
 peak_sex_stat <- function(data, index) {
   model <- feols(
     log_inc ~ female + age + age2 + female:age + female:age2 +
@@ -253,25 +258,25 @@ peak_sex_stat <- function(data, index) {
   c(peaks, difference = unname(peaks["men"] - peaks["women"]))
 }
 
-set.seed(123) # for reproducibility
+set.seed(123) # para reproducibilidad
 boot_peak_sex <- boot(clean_data, peak_sex_stat, R = B)
 boot_peak_sex
 
-boot.ci(boot_peak_sex, type = "perc", index = 1)  # men
-boot.ci(boot_peak_sex, type = "perc", index = 2)  # women
-boot.ci(boot_peak_sex, type = "perc", index = 3)  # difference
+boot.ci(boot_peak_sex, type = "perc", index = 1)  # hombres
+boot.ci(boot_peak_sex, type = "perc", index = 2)  # mujeres
+boot.ci(boot_peak_sex, type = "perc", index = 3)  # diferencia
 
 
-## 7. Regression table and export to LaTeX
+## 7. Tabla de regresión y exportación a LaTeX
 
-# The problem set asks for a table comparing the unconditional and conditional
-# gaps with analytical and bootstrap standard errors and a measure of in-sample
-# fit. Since the object of interest is the gender coefficient rather than the
-# whole coefficient vector, the table carries one row per specification.
+# El problem set pide una tabla que compare las brechas incondicional y
+# condicional con errores estándar analíticos y bootstrap y una medida de ajuste
+# dentro de muestra. Como el objeto de interés es el coeficiente de género y no
+# todo el vector de coeficientes, la tabla lleva una fila por especificación.
 
-# a. Bootstrap standard errors for every specification, not just the preferred
-# one. Same route as in section 5: refit with lm() because vcovBS does not take
-# fixest objects.
+# a. Errores estándar bootstrap para cada especificación, no solo la preferida.
+# Misma ruta que en la sección 5: reajustar con lm() porque vcovBS no toma
+# objetos fixest.
 se_boot_of <- function(formula) {
   m <- lm(formula, data = clean_data, weights = fex_c)
   set.seed(123)
@@ -283,7 +288,7 @@ f_hk     <- log_inc ~ female + age + age2 + factor(maxEducLevel)
 f_hours  <- log_inc ~ female + age + age2 + factor(maxEducLevel) +
   totalHoursWorked
 
-# b. One row per specification.
+# b. Una fila por especificación.
 gap_table <- tibble(
   Specification = c(
     "(1) Unconditional",
@@ -302,7 +307,7 @@ gap_table <- tibble(
 
 gap_table
 
-# c. Implied peak ages by sex, with their bootstrap confidence intervals.
+# c. Edades pico implícitas por sexo, con sus intervalos de confianza bootstrap.
 ci_of <- function(i) boot.ci(boot_peak_sex, type = "perc", index = i)$percent[4:5]
 
 peak_table <- tibble(
@@ -314,8 +319,8 @@ peak_table <- tibble(
 
 peak_table
 
-# d. Export both to LaTeX, same pattern as 02 and 04: kbl with booktabs, and
-# [!h] forced to [H] so the tables cannot float out of their own section.
+# d. Exportar ambas a LaTeX, mismo patrón que 02 y 04: kbl con booktabs, y [!h]
+# forzado a [H] para que las tablas no puedan flotar fuera de su propia sección.
 force_float_h <- function(x) {
   sub("\\\\begin\\{table\\}\\[!h\\]", "\\\\begin{table}[H]", x)
 }
@@ -350,19 +355,20 @@ peak_table_tex <- peak_table |>
 writeLines(peak_table_tex, "output/tables/gender_peak_age_by_sex.tex")
 
 
-## 8. Age-income profile by sex plot
+## 8. Gráfico del perfil edad-ingreso por sexo
 
-# a. Age grid over the observed range, one copy per sex. Education is held at
-# its modal category: as in 04, with no age-education interaction in the model
-# this only shifts both curves vertically - it changes neither their shape nor
-# the peak ages, so the comparison is unaffected by the choice.
+# a. Grilla de edad sobre el rango observado, una copia por sexo. La educación se
+# mantiene en su categoría modal: como en 04, sin interacción edad-educación en
+# el modelo esto solo desplaza ambas curvas verticalmente - no cambia ni su forma
+# ni las edades pico, así que la comparación no se ve afectada por la elección.
 ref_educ <- clean_data |> count(maxEducLevel) |> slice_max(n, n = 1) |>
   pull(maxEducLevel)
 
-# The grid stops at 70 rather than at the sample maximum of 91: the 99th
-# percentile of age is 71, so past that the curves are fitted on about 1% of the
-# observations. Plotting to 91 would hand a third of the chart's width to that
-# 1% and let the parabola's extrapolated dive dominate the picture.
+# La grilla se detiene en 70 y no en el máximo muestral de 91: el percentil 99 de
+# la edad es 71, así que más allá de eso las curvas se ajustan sobre cerca del 1%
+# de las observaciones. Graficar hasta 91 le daría un tercio del ancho del
+# gráfico a ese 1% y dejaría que la caída extrapolada de la parábola dominara la
+# imagen.
 age_max_plot <- 70
 age_grid <- seq(min(clean_data$age), age_max_plot, by = 1)
 
@@ -374,23 +380,24 @@ profiles_sex$log_inc_pred <- predict(gap_interact, newdata = profiles_sex)
 profiles_sex <- profiles_sex |>
   mutate(sexo = if_else(female == 1, "Women", "Men"))
 
-# b. Plot both profiles with their peak ages marked.
-# lab_hjust pushes each peak label away from the other so they cannot overlap
-# when the two peaks sit close together.
+# b. Graficar ambos perfiles con sus edades pico marcadas.
+# lab_hjust empuja cada etiqueta de pico lejos de la otra para que no se
+# traslapen cuando los dos picos quedan cerca.
 peaks_sex <- tibble(
   sexo     = c("Men", "Women"),
   peak_age = c(boot_peak_sex$t0[1], boot_peak_sex$t0[2])
 ) |>
   mutate(lab_hjust = if_else(peak_age == min(peak_age), 1.1, -0.1))
 
-# The outcome is in logs, which nobody can read off an axis, so the breaks sit
-# at round peso amounts (doubling, the natural spacing on a log scale) and are
-# labelled in pesos. The curve is unchanged; only the axis becomes legible.
+# El resultado está en logs, que nadie puede leer de un eje, así que los breaks
+# se ubican en montos redondos de pesos (duplicando, el espaciado natural en
+# escala log) y se etiquetan en pesos. La curva no cambia; solo el eje se vuelve
+# legible.
 peso_breaks <- c(6e5, 8e5, 1e6, 1.5e6, 2e6, 3e6)
 peso_labels <- c("$600K", "$800K", "$1.0M", "$1.5M", "$2.0M", "$3.0M")
 
-# Series are labelled on the curves themselves, so identity never depends on
-# matching a colour back to a legend.
+# Las series se etiquetan sobre las curvas mismas, así que la identidad nunca
+# depende de emparejar un color con una leyenda.
 series_labels_sex <- profiles_sex |>
   group_by(sexo) |>
   slice_max(age, n = 1) |>
@@ -398,8 +405,9 @@ series_labels_sex <- profiles_sex |>
 
 y_top <- max(profiles_sex$log_inc_pred)
 
-# The band between the curves is the gender gap at each age, so shading it
-# turns the widening gap into something you can see rather than infer.
+# La banda entre las curvas es la brecha de género a cada edad, así que
+# sombrearla convierte la brecha que se ensancha en algo que se puede ver en vez
+# de inferir.
 gap_band <- profiles_sex |>
   select(age, sexo, log_inc_pred) |>
   pivot_wider(names_from = sexo, values_from = log_inc_pred)

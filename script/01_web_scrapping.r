@@ -1,28 +1,28 @@
 ###############################################################################
-# Project Name:      Predicting Income
-# Script Name:       01_Web_Scrapping.r
-# Authors:           Maria Jose Perez, Juan Manuel Lozano, Samuel Suárez 
-# Script Purpose:    This script scrapes income and covariables from
-#                    the GEIH, from the website:
-#                    https://ignaciomsarmiento.github.io/GEIH2018_sample/
+# Nombre del proyecto:  Predicting Income
+# Nombre del script:    01_web_scrapping.r
+# Autores:              Maria Jose Perez, Juan Manuel Lozano, Samuel Suárez
+# Propósito del script: Este script raspa el ingreso y las covariables de
+#                       la GEIH, desde el sitio web:
+#                       https://ignaciomsarmiento.github.io/GEIH2018_sample/
 ###############################################################################
 
-# Layout:
-# 1. Load libraries
-# 2. Scrape function
-# 3. Scrapping
-# 4. Organize and save data
+# Estructura:
+# 1. Cargar librerías
+# 2. Función de raspado
+# 3. Raspado
+# 4. Organizar y guardar los datos
 
 ################################################################################
 
-# Input: GEIH 2018 from https://ignaciomsarmiento.github.io/GEIH2018_sample/
-# Output: Dataframe with income and covariables. The dataframe has a subset var
-#         which identifies which subest a unit belongs to.
+# Input: GEIH 2018 desde https://ignaciomsarmiento.github.io/GEIH2018_sample/
+# Output: Dataframe con el ingreso y las covariables. El dataframe tiene una
+#         variable subset que identifica a qué subset pertenece cada unidad.
 
 ################################################################################
 
 
-## 1. Load libraries
+## 1. Cargar librerías
 
 library(pacman)
 
@@ -34,18 +34,18 @@ p_load(
 )
 
 
-## 2. Scrape function
+## 2. Función de raspado
 income_url <- "https://ignaciomsarmiento.github.io/GEIH2018_sample/pages/"
-# Note: The webpage has no robots.txt.
+# Nota: la página web no tiene robots.txt.
 
 scrape_function <- function(i) {
   ###
-  # Reads the HTML content of a GEIH webpage, extracts the table it
-  # contains and tags every row with the subset it came from.
+  # Lee el contenido HTML de una página web de la GEIH, extrae la tabla que
+  # contiene y etiqueta cada fila con el subset del que proviene.
 
-  # Input:  i: page number (1-10) to scrape. # nolint: indentation_linter.
-  # Output: dataframe with income and covariables, as well as a subset
-  #         variable that identifies which subset a unit belongs to.
+  # Input:  i: número de página (1-10) a raspar. # nolint: indentation_linter.
+  # Output: dataframe con el ingreso y las covariables, además de una variable
+  #         subset que identifica a qué subset pertenece cada unidad.
   ###
 
   url <- paste0(income_url, "geih_page_", i, ".html")
@@ -69,7 +69,7 @@ scrape_function <- function(i) {
 }
 
 
-## 3. Scrapping
+## 3. Raspado
 # Recorremos las 10 páginas y las juntamos en un for simple.
 geih_scrap <- data.frame()
 for (i in 1:10) {
@@ -77,7 +77,7 @@ for (i in 1:10) {
   geih_scrap <- rbind(geih_scrap, scrape_function(i))
 }
 
-## 4. Save data
+## 4. Guardar los datos
 saveRDS(geih_scrap, file = "data/geih_scrap.rds")
 
-################################End of script###################################
+##############################Fin del script####################################

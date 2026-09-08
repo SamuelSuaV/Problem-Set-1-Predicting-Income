@@ -1,56 +1,49 @@
 ###############################################################################
-# Project Name:      Predicting Income
-# Script Name:       00_Master_File.r
-# Authors:           Maria Jose Perez, Juan Manuel Lozano, Samuel Suárez Valle
-# Script Purpose:    Runs the whole pipeline (scraping, cleaning, description
-#                    and Sections 1-3) with a single call.
+# Nombre del proyecto:  Predicting Income
+# Nombre del script:    00_master_file.r
+# Autores:              Maria Jose Perez, Juan Manuel Lozano, Samuel Suárez Valle
+# Propósito del script: Ejecuta todo el pipeline (raspado, limpieza, descripción
+#                       y Secciones 1-3) con una sola llamada.
 ###############################################################################
 
-# Layout:
-# 1. Configuration
-# 2. Working directory and output folders
-# 3. Pipeline definition
-# 4. Step runner
-# 5. Execute
+# Estructura:
+# 1. Configuración
+# 2. Directorio de trabajo y carpetas de salida
+# 3. Definición del pipeline
+# 4. Ejecutor de pasos
+# 5. Ejecución
 
 ################################################################################
 
-# Usage (run from the repo root, the "Problem Set 1 - Predicting Income/" dir):
+# Uso (correr desde la raíz del repo, la carpeta "Problem Set 1 - Predicting Income/"):
 #
-#   Rscript script/00_Master_File.r            # run every step
-#   Rscript script/00_Master_File.r 04 05      # run only steps 04 and 05
-#   FORCE_SCRAPE=1 Rscript script/00_Master_File.r   # re-run the web scraping
+#   Rscript script/00_master_file.r            # corre todos los pasos
+#   Rscript script/00_master_file.r 04 05      # corre solo los pasos 04 y 05
 #
-# Step 01 (scraping) is skipped if data/geih_scrap.rds already exists so we
-# don't hit the GEIH pages every time. Use FORCE_SCRAPE=1 or delete the file
-# to scrape again.
+# El paso 01 siempre vuelve a raspar las páginas de la GEIH y sobrescribe data/geih_scrap.rds.
 
 ################################################################################
 
 
-## 1. Configuration
+## 1. Configuración
 
-# Only re-scrape if asked to, or if the raw file isn't there.
-force_scrape <- tolower(Sys.getenv("FORCE_SCRAPE", "false")) %in%
-  c("1", "true", "yes", "y")
-
-# Optional args: step numbers ("01", "4", ...) to run just some of the steps.
-# If nothing is passed we run everything.
+# Args opcionales: números de paso ("01", "4", ...) para correr solo algunos de los pasos.
+# Si no se pasa nada, corremos todo.
 requested_steps <- commandArgs(trailingOnly = TRUE)
 
-# Each script loads its own packages with pacman, but pacman itself has to be
-# installed first.
+# Cada script carga sus propios paquetes con pacman, pero pacman mismo tiene que
+# instalarse primero.
 if (!requireNamespace("pacman", quietly = TRUE)) {
   install.packages("pacman", repos = "https://cloud.r-project.org")
 }
 
 
-## 2. Working directory and output folders
+## 2. Directorio de trabajo y carpetas de salida
 
-# Every script uses paths relative to the repo root ("data/...", "output/...").
-if (!file.exists("script/01_Web_Scrapping.r")) {
+# Todos los scripts usan rutas relativas a la raíz del repo ("data/...", "output/...").
+if (!file.exists("script/01_web_scrapping.r")) {
   stop(
-    "Run this from the repo root:  Rscript script/00_Master_File.r",
+    "Run this from the repo root:  Rscript script/00_master_file.r",
     call. = FALSE
   )
 }
@@ -60,27 +53,22 @@ for (d in c("data", "output/tables", "output/figures", "output/models")) {
 }
 
 
-## 3. Pipeline definition
+## 3. Definición del pipeline
 
-# id      -> numeric prefix of the script (used to pick a subset of steps)
-# script  -> path from the repo root
-# label   -> description printed to the console
-# skip    -> optional function; if it returns TRUE the step is skipped
+# id      -> prefijo numérico del script (se usa para elegir un subconjunto de pasos)
+# script  -> ruta desde la raíz del repo
+# label   -> descripción impresa en la consola
 pipeline <- list(
   list(
-    id = "01", script = "script/01_Web_Scrapping.r",
-    label = "Web scraping (GEIH 2018 sample -> data/geih_scrap.rds)",
-    skip = function() {
-      if (force_scrape) return(FALSE)
-      file.exists("data/geih_scrap.rds")
-    }
+    id = "01", script = "script/01_web_scrapping.r",
+    label = "Web scraping (GEIH 2018 sample -> data/geih_scrap.rds)"
   ),
   list(
-    id = "02", script = "script/02_Data_Cleaning.r",
+    id = "02", script = "script/02_data_cleaning.r",
     label = "Data cleaning (-> data/geih_clean.rds, balance table)"
   ),
   list(
-    id = "03", script = "script/03_Data_Description.r",
+    id = "03", script = "script/03_data_description.r",
     label = "Data description (descriptive tables and figures)"
   ),
   list(
@@ -106,9 +94,9 @@ pipeline <- list(
 )
 
 
-## 4. Step runner
+## 4. Ejecutor de pasos
 
-# Turn a step token ("4", "04", "step04") into its two-digit id.
+# Convierte un token de paso ("4", "04", "step04") en su id de dos dígitos.
 norm_id <- function(x) sprintf("%02d", as.integer(gsub("\\D", "", x)))
 
 selected_ids <- if (length(requested_steps) > 0) {
@@ -117,8 +105,8 @@ selected_ids <- if (length(requested_steps) > 0) {
   vapply(pipeline, function(s) s$id, character(1))
 }
 
-# Each script reads the .rds it needs from disk, so we source it in its own
-# environment to keep names from leaking between steps.
+# Cada script lee de disco el .rds que necesita, así que lo sourceamos en su
+# propio entorno para que los nombres no se filtren entre pasos.
 run_step <- function(step) {
   bar <- strrep("=", 74)
   message("\n", bar)
@@ -147,22 +135,13 @@ run_step <- function(step) {
 }
 
 
-## 5. Execute
+## 5. Ejecución
 
 t_start <- Sys.time()
 ran <- character(0)
-skipped <- character(0)
 
 for (step in pipeline) {
   if (!step$id %in% selected_ids) next
-
-  if (!is.null(step$skip) && isTRUE(step$skip())) {
-    message(sprintf(
-      "\n--- step %s skipped (%s)", step$id, step$label
-    ))
-    skipped <- c(skipped, step$id)
-    next
-  }
 
   run_step(step)
   ran <- c(ran, step$id)
@@ -172,8 +151,6 @@ total <- round(as.numeric(difftime(Sys.time(), t_start, units = "mins")), 2)
 message("\n", strrep("=", 74))
 message(sprintf("Pipeline finished in %s min.", total))
 message("  ran:     ", if (length(ran)) paste(ran, collapse = ", ") else "(none)")
-message("  skipped: ",
-        if (length(skipped)) paste(skipped, collapse = ", ") else "(none)")
 message(strrep("=", 74))
 
-################################End of script###################################
+##############################Fin del script####################################

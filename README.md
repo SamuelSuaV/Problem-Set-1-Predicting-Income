@@ -29,10 +29,10 @@ Problem Set 1 - Predicting Income/
 ├── README.md
 │
 ├── script/                           # Todo el código, numerado y ejecutado en orden
-│   ├── 00_Master_File.r
-│   ├── 01_Web_Scrapping.r
-│   ├── 02_Data_Cleaning.r
-│   ├── 03_Data_Description.r
+│   ├── 00_master_file.r
+│   ├── 01_web_scrapping.r
+│   ├── 02_data_cleaning.r
+│   ├── 03_data_description.r
 │   ├── 04_age_labor_income.r
 │   ├── 05_gender_gap.r
 │   ├── 06_income_prediction_train.r
@@ -48,8 +48,11 @@ Problem Set 1 - Predicting Income/
 │   ├── tables/                       # Tablas de estimación en .tex
 │   └── models/                       # Modelos entrenados serializados (.rds)
 │
-├── LaTex/                            # Documento escrito (main.tex) y slides parciales
-└── presentation/                    # Fuentes de los slide decks (age / gap / pred)
+└── latex/                            # Material LaTeX
+    ├── data_description.tex          # Documento escrito (estadística descriptiva)
+    ├── missing_income.tex            # Nota sobre el ingreso faltante
+    ├── section3_best_model_slide.tex # Fragmento \input para el deck de predicción
+    └── presentation/                 # Fuentes de los slide decks (age / gap / pred)
 ```
 
 ---
@@ -57,28 +60,24 @@ Problem Set 1 - Predicting Income/
 ## Instrucciones de replicación
 
 Desde la raíz del repositorio (esta carpeta, `Problem Set 1 - Predicting Income/`),
-correr el master file (`script/00_Master_File.r`), que ejecuta los demás scripts en
+correr el master file (`script/00_master_file.r`), que ejecuta los demás scripts en
 orden numérico:
 
 ```bash
-Rscript script/00_Master_File.r            # corre todo el pipeline
-Rscript script/00_Master_File.r 04 05      # corre solo esos pasos (por su prefijo)
-FORCE_SCRAPE=1 Rscript script/00_Master_File.r   # fuerza el raspado (paso 01)
+Rscript script/00_master_file.r            # corre todo el pipeline
+Rscript script/00_master_file.r 04 05      # corre solo esos pasos (por su prefijo)
 ```
 
-- Por defecto el paso 01 (raspado) se **salta si `data/geih_scrap.rds` ya existe**,
-  para no volver a golpear las páginas de la GEIH en cada corrida.
-- `FORCE_SCRAPE=1` (valores válidos: `1`, `true`, `yes`, `y`) delante del comando
-  fuerza el raspado aunque el `.rds` crudo exista; borrar `data/geih_scrap.rds` tiene
-  el mismo efecto. En Windows `cmd`, primero `set FORCE_SCRAPE=1` y luego el `Rscript`.
+- El paso 01 (raspado) **siempre se ejecuta** y sobrescribe `data/geih_scrap.rds`
+  en cada corrida del pipeline completo.
 - Pasar prefijos de paso (`01`, `4`, …) como argumentos corre solo ese subconjunto,
   útil para iterar sobre una sección sin rehacer todo.
 
 Cada script lee y escribe rutas relativas (`"data/..."`, `"output/..."`) respecto al
 directorio de trabajo, por lo que debe ejecutarse desde la raíz. A alto nivel:
 
-- `00_Master_File.r` — script maestro; centraliza la orquestación del pipeline y evita
-  volver a raspar la página si `data/geih_scrap.rds` ya existe.
+- `00_master_file.r` — script maestro; centraliza la orquestación del pipeline y lo
+  corre entero (incluido el raspado) con una sola llamada.
 - `01`–`03` construyen los datos: raspado, limpieza y estadística descriptiva.
 - `04`–`05` son los análisis de las Secciones 1 y 2 (perfil edad–ingreso y brecha de
   género).
@@ -86,8 +85,8 @@ directorio de trabajo, por lo que debe ejecutarse desde la raíz. A alto nivel:
   impacto de la imputación de ingresos faltantes.
 
 Todas las figuras y tablas se regeneran automáticamente en `output/`; el documento en
-`LaTex/main.tex` las incorpora vía `\input` / `\includegraphics`, de modo que se
-mantiene sincronizado al recorrer el pipeline.
+`latex/data_description.tex` las incorpora vía `\input` / `\includegraphics`, de modo
+que se mantiene sincronizado al recorrer el pipeline.
 
 ---
 
@@ -95,10 +94,10 @@ mantiene sincronizado al recorrer el pipeline.
 
 | Script | Responsabilidad |
 | --- | --- |
-| `00_Master_File.r` | Script maestro; salta el raspado si el `.rds` crudo ya existe. |
-| `01_Web_Scrapping.r` | Raspa los 10 *chunks* HTML de `https://ignaciomsarmiento.github.io/GEIH2018_sample/`, etiqueta cada fila con `subset` (1–10, la llave del *split* train/validación de la Sección 3) y guarda `data/geih_scrap.rds`. |
-| `02_Data_Cleaning.r` | Filtra a la muestra de análisis (`age >= 18 & ocu == 1`), selecciona variables, construye la `balance_table` de datos faltantes en `y_total_m` y exporta `data/geih_clean.rds` con los `NA` sin imputar. |
-| `03_Data_Description.r` | Estadística descriptiva y gráficos exploratorios, todos ponderados por el factor de expansión `fex_c` vía `srvyr`. Exporta las tablas `output/tables/*.tex` y figuras `output/figures/*.png` del documento. |
+| `00_master_file.r` | Script maestro; orquesta y corre el pipeline completo (incluido el raspado) con una sola llamada. |
+| `01_web_scrapping.r` | Raspa los 10 *chunks* HTML de `https://ignaciomsarmiento.github.io/GEIH2018_sample/`, etiqueta cada fila con `subset` (1–10, la llave del *split* train/validación de la Sección 3) y guarda `data/geih_scrap.rds`. |
+| `02_data_cleaning.r` | Filtra a la muestra de análisis (`age >= 18 & ocu == 1`), selecciona variables, construye la `balance_table` de datos faltantes en `y_total_m` y exporta `data/geih_clean.rds` con los `NA` sin imputar. |
+| `03_data_description.r` | Estadística descriptiva y gráficos exploratorios, todos ponderados por el factor de expansión `fex_c` vía `srvyr`. Exporta las tablas `output/tables/*.tex` y figuras `output/figures/*.png` del documento. |
 | `04_age_labor_income.r` | Estima los perfiles edad–ingreso incondicional y condicional, la edad pico implícita y su IC *bootstrap*. |
 | `05_gender_gap.r` | Estima la brecha de género incondicional y condicional, recupera el coeficiente vía Frisch–Waugh–Lovell con SE analíticos y *bootstrap*, y compara los perfiles edad–ingreso predichos por sexo. |
 | `06_income_prediction_train.r` | Reestima los cinco modelos de las Secciones 1–2 sobre el *split* de entrenamiento (`subset` 1–7), los compara contra la versión de muestra completa y guarda los modelos ajustados en `output/models/`. |
@@ -134,9 +133,10 @@ autoexplicativos en `snake_case`.
 - Las dependencias se gestionan en línea con `pacman::p_load(...)` al inicio de cada
   script: `p_load()` instala automáticamente los paquetes que falten y luego los
   carga, así que no hay un paso de instalación separado.
-- **Documento escrito:** compilar desde `LaTex/` con
-  `pdflatex -interaction=nonstopmode main.tex` (dos pasadas, para TOC y referencias
-  cruzadas), después de recorrer `02`/`03` para que los `.tex`/figuras estén al día.
+- **Documento escrito:** compilar desde `latex/` con
+  `pdflatex -interaction=nonstopmode data_description.tex` (dos pasadas, para TOC y
+  referencias cruzadas), después de recorrer `02`/`03` para que los `.tex`/figuras
+  estén al día. Los slide decks se compilan desde `latex/presentation/`.
 
 ---
 

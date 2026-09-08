@@ -1,87 +1,88 @@
 ###############################################################################
-# Project Name:      Predicting Income
-# Script Name:       02_Data_Cleaning.r
-# Authors:           Maria Jose Perez, Juan Manuel Lozano, Samuel Suárez Valle
-# Script Purpose:    Clean the scraped GEIH 2018 sample: keep employed adults,
-#                    select the variables of interest and handle missing values.
+# Nombre del proyecto:  Predicting Income
+# Nombre del script:    02_data_cleaning.r
+# Autores:              Maria Jose Perez, Juan Manuel Lozano, Samuel Suárez Valle
+# Propósito del script: Limpiar la muestra raspada de la GEIH 2018: conservar
+#                       adultos ocupados, seleccionar las variables de interés
+#                       y manejar los valores faltantes.
 ###############################################################################
 
-# Layout:
-# 1. Load libraries
-# 2. Load data
-# 3. Filter and select variables
-# 4. Handle missing values
-# 6. Handle outliers
-# 7. Save clean data
+# Estructura:
+# 1. Cargar librerías
+# 2. Cargar datos
+# 3. Filtrar y seleccionar variables
+# 4. Manejar valores faltantes
+# 6. Manejar outliers
+# 7. Guardar datos limpios
 
 ################################################################################
 
-# Input:  Raw scraped dataframe from 01_Web_Scrapping.r
-# Output: Clean analysis dataframe
+# Input:  Dataframe crudo raspado por 01_web_scrapping.r
+# Output: Dataframe de análisis limpio
 
 ################################################################################
 
 
-## 1. Load libraries
+## 1. Cargar librerías
 
 library(pacman)
 p_load(
-  tidyverse,  # Data manipulation.
-  srvyr,      # Survey design and analysis.
-  broom,      # Tidy statistical test output.
-  kableExtra  # Export tables to LaTeX.
+  tidyverse,  # Manipulación de datos.
+  srvyr,      # Diseño y análisis de encuestas.
+  broom,      # Salida ordenada de pruebas estadísticas.
+  kableExtra  # Exportar tablas a LaTeX.
 )
 
 
-## 2. Load data
+## 2. Cargar datos
 geih_scrap <- readRDS("data/geih_scrap.rds")
 
-## 3. Initial filter, renaming and selection
+## 3. Filtro inicial, renombrado y selección
 
-# Restricted_sample: only employed adults (age >= 18 and employment status = 1).
-# Removed unecessary variables
-# We also drop the single respondent with a missing maxEducLevel: education is
-# a control in every conditional specification downstream, so keeping the row
-# would leave the unconditional models running on one more observation than
-# the conditional ones. The value is missing because that person answered
-# p6210 = 9 ("no sabe, no informa"), i.e. a genuine non-response, and it is
-# 1 row out of 16,542.
+# Restricted_sample: solo adultos ocupados (age >= 18 y estado de empleo = 1).
+# Quitamos variables innecesarias.
+# También descartamos al único encuestado con maxEducLevel faltante: la educación
+# es un control en toda especificación condicional aguas abajo, así que dejar la
+# fila haría que los modelos incondicionales corrieran sobre una observación más
+# que los condicionales. El valor falta porque esa persona respondió
+# p6210 = 9 ("no sabe, no informa"), es decir una no-respuesta genuina, y es
+# 1 fila de 16,542.
 geih_clean <- geih_scrap %>%
   filter(age >= 18, ocu == 1, !is.na(maxEducLevel)) %>%
   select(-fweight, -fex_dpto, -depto, -clase)
 
 
-## 4. Handle missing values
+## 4. Manejar valores faltantes
 
-# Characterization of missings
-# a. Percentage of missing values by variable
+# Caracterización de los faltantes
+# a. Porcentaje de valores faltantes por variable
 missing_summary <- geih_clean %>%
   summarise(across(everything(), ~ mean(is.na(.)) * 100))
 
 missing_summary
 
-# Delete columns with 100% missing values
+# Eliminar columnas con 100% de valores faltantes
 cols_to_remove <- names(missing_summary)[missing_summary == 100]
 geih_clean <- geih_clean %>% select(-all_of(cols_to_remove))
 
-# The removed columns are:
-# p550 - Net income from harvest in last 12 monts
-# p7301 - Worked or looked for job earlier
-# p7350 - In your last job you where (uneployed)
-# p7422 - Income earned from work in last month (for unemployed)?
-# p7422s1 - How much (replying to p7422)
-# y_gananciaNetaAgro_m - Net income from agric. activities in last 12 months
+# Las columnas eliminadas son:
+# p550 - Ingreso neto de la cosecha en los últimos 12 meses
+# p7301 - Trabajó o buscó trabajo antes
+# p7350 - En su último trabajo usted era (desempleado)
+# p7422 - Ingreso obtenido del trabajo en el último mes (para desempleados)?
+# p7422s1 - Cuánto (respondiendo a p7422)
+# y_gananciaNetaAgro_m - Ingreso neto de actividades agrícolas en los últimos 12 meses
 
-# These columns would have been irrelevant for our analysis even w.o missings
+# Estas columnas habrían sido irrelevantes para nuestro análisis incluso sin faltantes
 
-# Now we extract the missings in vars of special interest
+# Ahora extraemos los faltantes en variables de especial interés
 vars_of_interest <- c(
   "age", "maxEducLevel", "y_total_m", "sex"
 )
 
 missing_vars <- missing_summary[vars_of_interest]
 
-# b. Separate rows with vs. without a missing y_total_m
+# b. Separar las filas con vs. sin un y_total_m faltante
 geih_clean <- geih_clean %>%
   mutate(missing_income = factor(
     if_else(is.na(y_total_m), "Missing", "Non-missing"),
@@ -91,7 +92,7 @@ geih_clean <- geih_clean %>%
 geih_missing    <- geih_clean %>% filter(missing_income == "Missing")
 geih_nonmissing <- geih_clean %>% filter(missing_income == "Non-missing")
 
-# c. Summary statistics for age, by group
+# c. Estadísticos de resumen para age, por grupo
 age_summary <- geih_clean %>%
   group_by(missing_income) %>%
   summarise(
@@ -106,7 +107,7 @@ age_summary <- geih_clean %>%
 
 age_summary
 
-# d. Percentage breakdowns by group (sex, education level)
+# d. Desgloses porcentuales por grupo (sexo, nivel educativo)
 pct_by_group <- function(data, var) {
   data %>%
     filter(!is.na(.data[[var]])) %>%
@@ -116,16 +117,17 @@ pct_by_group <- function(data, var) {
     ungroup()
 }
 
-sex_pct  <- pct_by_group(geih_clean, "sex")          # Sex distribution
-educ_pct <- pct_by_group(geih_clean, "maxEducLevel") # Education level
+sex_pct  <- pct_by_group(geih_clean, "sex")          # Distribución por sexo
+educ_pct <- pct_by_group(geih_clean, "maxEducLevel") # Nivel educativo
 
 sex_pct
 educ_pct
 
-# e. T-test comparing the missing vs. non-missing groups
-# For age we compare means directly; for categorical variables we compare,
-# for each category, the share of the group that falls in it (a dummy
-# t-test), which is equivalent to a two-sample test of proportions.
+# e. Prueba t que compara los grupos con vs. sin faltante
+# Para age comparamos medias directamente; para las variables categóricas
+# comparamos, para cada categoría, la proporción del grupo que cae en ella (una
+# prueba t sobre una dummy), que equivale a una prueba de proporciones de dos
+# muestras.
 safe_ttest <- function(formula, data) {
   tt <- tryCatch(t.test(formula, data = data), error = function(e) NULL)
   if (is.null(tt)) {
@@ -167,16 +169,18 @@ balance_table <- bind_rows(
     c(mean_nonmissing, mean_missing, diff, statistic, p.value), ~ round(., 4)
   ))
 
-# f. Final table: means/percentages for each group, their difference and the
-# t-test p-value (row "age" reports means in years; all other rows report
-# proportions, i.e. category shares expressed on a 0-1 scale).
+# f. Tabla final: medias/porcentajes de cada grupo, su diferencia y el
+# p-valor de la prueba t (la fila "age" reporta medias en años; todas las demás
+# filas reportan proporciones, es decir participaciones de categoría en escala
+# 0-1).
 balance_table
 
-# g. Label sex and education levels, and collapse variable/category into a
-# single identifying column (the variable's own name when it has no
-# categories, e.g. "age"; its category's name otherwise, e.g. "Female").
-# Sex coding inferred from gender-skewed occupations (oficio): housemaids
-# (54) are almost all sex == 0, drivers (98) almost all sex == 1.
+# g. Etiquetar los niveles de sexo y educación, y colapsar variable/categoría en
+# una sola columna identificadora (el nombre de la variable cuando no tiene
+# categorías, p. ej. "age"; el nombre de su categoría en caso contrario, p. ej.
+# "Female"). Codificación de sexo inferida de ocupaciones sesgadas por género
+# (oficio): las empleadas domésticas (54) son casi todas sex == 0, los
+# conductores (98) casi todos sex == 1.
 sex_labels <- c("0" = "Female", "1" = "Male")
 
 educ_labels <- c(
@@ -204,10 +208,10 @@ balance_table <- balance_table %>%
 
 balance_table
 
-# h. Export the balance table to LaTeX
-# force_float_h swaps kableExtra's [!h] hint for a hard [H] (requires
-# \usepackage{float} in the including .tex), so a table can't float past its
-# own section into later ones.
+# h. Exportar la balance table a LaTeX
+# force_float_h cambia la pista [!h] de kableExtra por un [H] duro (requiere
+# \usepackage{float} en el .tex que la incluye), para que una tabla no pueda
+# flotar más allá de su propia sección hacia las siguientes.
 force_float_h <- function(x) {
   sub("\\\\begin\\{table\\}\\[!h\\]", "\\\\begin{table}[H]", x)
 }
@@ -229,12 +233,13 @@ balance_table_tex <- balance_table %>%
 
 writeLines(balance_table_tex, "output/tables/balance_table.tex")
 
-# i. Characterizing the missing-income group by employment relationship
-# With the sample restricted to occupied adults (ocu == 1), missing y_total_m
-# is concentrated among workers without a fixed wage: unpaid family/other-
-# household workers (relab 6-7) are almost never in the non-missing group,
-# and self-employed, employer and informal workers are all over-represented
-# among the missing (see relab_pct/formal_pct below).
+# i. Caracterizando el grupo de ingreso faltante por relación laboral
+# Con la muestra restringida a adultos ocupados (ocu == 1), el y_total_m faltante
+# se concentra entre trabajadores sin un salario fijo: los trabajadores
+# familiares / de otro hogar sin remuneración (relab 6-7) casi nunca están en el
+# grupo no-faltante, y los trabajadores por cuenta propia, empleadores e
+# informales están todos sobrerrepresentados entre los faltantes (ver
+# relab_pct/formal_pct abajo).
 
 
 relab_labels <- c(
@@ -249,7 +254,7 @@ relab_labels <- c(
   "9" = "Otro"
 )
 
-# English labels for the writeup tables (LaTex/missing_income.tex is in English).
+# Etiquetas en inglés para las tablas del documento (latex/missing_income.tex está en inglés).
 relab_labels_en <- c(
   "1" = "Private employee",
   "2" = "Government employee",
@@ -272,12 +277,12 @@ formal_pct <- pct_by_group(geih_clean, "formal")
 relab_pct
 formal_pct
 
-# j. Missing-income rate by employment relationship
-# relab_pct (above) gives the *composition* of the missing group; this table
-# restates it as a rate: the share of *each* relab category that is itself
-# missing y_total_m. Unweighted, matching balance_table. Feeds
-# tab:relab-missing-rate in the "Characterizing Missing Income" writeup
-# (LaTex/missing_income.tex).
+# j. Tasa de ingreso faltante por relación laboral
+# relab_pct (arriba) da la *composición* del grupo faltante; esta tabla lo
+# reformula como una tasa: la proporción de *cada* categoría de relab que a su
+# vez tiene y_total_m faltante. Sin ponderar, igual que balance_table. Alimenta
+# tab:relab-missing-rate en el documento "Characterizing Missing Income"
+# (latex/missing_income.tex).
 relab_missing_rate <- geih_clean %>%
   filter(!is.na(relab)) %>%
   group_by(relab) %>%
@@ -309,12 +314,12 @@ relab_missing_rate_tex <- relab_missing_rate %>%
 
 writeLines(relab_missing_rate_tex, "output/tables/relab_missing_rate.tex")
 
-## 7. Save clean data
+## 7. Guardar datos limpios
 
-# geih_clean is exported with its missing values (e.g. y_total_m) left
-# untouched, neither dropped nor imputed: how to treat them is an analysis
-# decision each section justifies on its own. The only exception is the
-# maxEducLevel non-response dropped in section 3.
+# geih_clean se exporta con sus valores faltantes (p. ej. y_total_m) intactos,
+# ni descartados ni imputados: cómo tratarlos es una decisión de análisis que
+# cada sección justifica por su cuenta. La única excepción es la no-respuesta de
+# maxEducLevel descartada en la sección 3.
 saveRDS(geih_clean, file = "data/geih_clean.rds")
 
-################################End of script###################################
+##############################Fin del script####################################

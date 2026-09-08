@@ -1,37 +1,39 @@
 ###############################################################################
-# Project Name:      Predicting Income
-# Script Name:       08_Income_Imputation_Comparison.r
-# Authors:           Maria Jose Perez, Juan Manuel Lozano, Samuel Suárez Valle
-# Script Purpose:    Compare Section 3's ten income-prediction specifications
-#                    under two training regimes - complete cases only (as in
-#                    07_income_prediction_validation.r) vs. a training set
-#                    where missing y_total_m is imputed via predictive mean
-#                    matching (PMM) - to gauge how much the missing-income
-#                    selection problem documented in 02_Data_Cleaning.r's
-#                    balance table actually affects prediction performance.
+# Nombre del proyecto:  Predicting Income
+# Nombre del script:    08_income_imputation_comparison.r
+# Autores:              Maria Jose Perez, Juan Manuel Lozano, Samuel Suárez Valle
+# Propósito del script: Comparar las diez especificaciones de predicción del
+#                       ingreso de la Sección 3 bajo dos regímenes de
+#                       entrenamiento - solo casos completos (como en
+#                       07_income_prediction_validation.r) vs. un conjunto de
+#                       entrenamiento donde el y_total_m faltante se imputa vía
+#                       predictive mean matching (PMM) - para medir cuánto afecta
+#                       realmente al desempeño de predicción el problema de
+#                       selección del ingreso faltante documentado en la balance
+#                       table de 02_data_cleaning.r.
 ###############################################################################
 
-# Layout:
-# 1. Load libraries
-# 2. Load data and build model variables
-# 3. The ten specifications, as a function of a training data frame
-# 4. Baseline: complete-case training (same population as 07)
-# 5. PMM imputation of missing log(y_total_m) among paid workers
-# 6. Refit the ten specifications on each of the m=5 imputed training sets
-# 7. Comparison table: complete-case vs. PMM-imputed, export to LaTeX
-# 8. Diagnostic: observed vs. imputed log-income density
+# Estructura:
+# 1. Cargar librerías
+# 2. Cargar datos y construir las variables del modelo
+# 3. Las diez especificaciones, como función de un data frame de entrenamiento
+# 4. Línea base: entrenamiento de casos completos (misma población que 07)
+# 5. Imputación PMM del log(y_total_m) faltante entre trabajadores pagos
+# 6. Reajustar las diez especificaciones sobre cada uno de los m=5 sets de entrenamiento imputados
+# 7. Tabla de comparación: casos completos vs. imputado por PMM, exportar a LaTeX
+# 8. Diagnóstico: densidad del log-ingreso observado vs. imputado
 
 ################################################################################
 
-# Input:  Clean analysis dataframe from 02_Data_Cleaning.r
-# Output: Comparison table (output/tables/section3_imputation_comparison.tex)
-#         and diagnostic figure
+# Input:  Dataframe de análisis limpio de 02_data_cleaning.r
+# Output: Tabla de comparación (output/tables/section3_imputation_comparison.tex)
+#         y figura de diagnóstico
 #         (output/figures/section3_imputation_density.png)
 
 ################################################################################
 
 
-## 1. Load libraries
+## 1. Cargar librerías
 
 library(pacman)
 p_load(
@@ -41,15 +43,16 @@ p_load(
     mice)
 
 
-## 2. Load data and build model variables
+## 2. Cargar datos y construir las variables del modelo
 
-# Same derived variables as 07_income_prediction_validation.r. relab 6-7
-# (unpaid family / other-household workers) are dropped up front: in this
-# training split every single relab-6/7 row has missing/non-positive income
-# (165 of 165, verified separately) - their "missingness" is not a data
-# problem to fix, it is the correct value for someone who by definition
-# receives no monetary wage, so they are excluded from both training regimes
-# compared below rather than treated as imputable.
+# Mismas variables derivadas que 07_income_prediction_validation.r. relab 6-7
+# (trabajadores familiares / de otro hogar sin remuneración) se descartan de
+# entrada: en este split de entrenamiento cada una de las filas de relab 6/7
+# tiene ingreso faltante/no positivo (165 de 165, verificado por separado) - su
+# "ausencia" no es un problema de datos por corregir, es el valor correcto para
+# alguien que por definición no recibe salario monetario, así que se excluyen de
+# ambos regímenes de entrenamiento comparados abajo en vez de tratarse como
+# imputables.
 clean_data <- readRDS("data/geih_clean.rds") |>
     filter(!(relab %in% c(6, 7))) |>
     mutate(
@@ -61,9 +64,9 @@ clean_data <- readRDS("data/geih_clean.rds") |>
             TRUE                 ~ "No aplica"
         ) |> factor(levels = c("No", "Sí", "No aplica")),
         recibe_transferencias = as.numeric(p7505 == 1),
-        # log_inc is NA whenever income is missing OR non-positive (the same
-        # criterion every other script in this project uses before taking a
-        # log) - exactly the set PMM imputes below.
+        # log_inc es NA siempre que el ingreso está faltante O es no positivo (el
+        # mismo criterio que usa cualquier otro script de este proyecto antes de
+        # tomar un log) - exactamente el conjunto que PMM imputa abajo.
         log_inc = if_else(!is.na(y_total_m) & y_total_m > 0, log(y_total_m), NA_real_)
     )
 
@@ -77,13 +80,12 @@ cat(sprintf(
 ))
 
 
-## 3. The ten specifications, as a function of a training data frame
+## 3. Las diez especificaciones, como función de un data frame de entrenamiento
 
-# Identical formulas to 06_income_prediction_train.r (model1, model2,
-# gap_uncond, gap_hk, gap_hours) and 07_income_prediction_validation.r
-# (model3-model7), wrapped in a function so they can be re-fit on
-# train_complete and on each imputed training set without duplicating code
-# five more times.
+# Fórmulas idénticas a 06_income_prediction_train.r (model1, model2, gap_uncond,
+# gap_hk, gap_hours) y 07_income_prediction_validation.r (model3-model7),
+# envueltas en una función para poder reajustarlas sobre train_complete y sobre
+# cada set de entrenamiento imputado sin duplicar el código cinco veces más.
 fit_all_models <- function(data) {
     list(
         model1 = lm(log_inc ~ age + age2,
@@ -129,10 +131,11 @@ model_labels <- c(
     model7     = "Género x nivel educativo"
 )
 
-# Validation RMSE, AIC/BIC and leave-one-out CV (leverage shortcut, see
-# 07_income_prediction_validation.r) for a fitted set of ten models -
-# identical logic to 07, wrapped in a function since it is now applied six
-# times (once per training regime: complete-case, and each of 5 imputations).
+# RMSE de validación, AIC/BIC y CV leave-one-out (atajo de leverage, ver
+# 07_income_prediction_validation.r) para un conjunto ajustado de diez modelos -
+# lógica idéntica a la de 07, envuelta en una función porque ahora se aplica seis
+# veces (una por régimen de entrenamiento: casos completos, y cada una de las 5
+# imputaciones).
 evaluate_models <- function(models) {
     validation_rmse <- map_dbl(models, function(model) {
         pred <- predict(model, newdata = validation_data)
@@ -142,13 +145,13 @@ evaluate_models <- function(models) {
     loocv_rmse <- map_dbl(models, function(model) {
         h <- hatvalues(model)
         e <- residuals(model)
-        # A factor level with a single training observation (model2's
-        # factor(relab) == 8, n = 1) gives that row h_ii = 1 exactly:
-        # removing it would eliminate its whole category, so its
-        # leave-one-out residual is a 0/0 that is mathematically undefined,
-        # not just numerically unstable - excluded rather than left to
-        # floating-point rounding (which can turn 0/0 into Inf or an
-        # arbitrary finite value depending on rounding direction).
+        # Un nivel de factor con una sola observación de entrenamiento (el
+        # factor(relab) == 8 de model2, n = 1) le da a esa fila h_ii = 1 exacto:
+        # quitarla eliminaría toda su categoría, así que su residuo
+        # leave-one-out es un 0/0 matemáticamente indefinido, no solo
+        # numéricamente inestable - se excluye en vez de dejarlo al redondeo de
+        # punto flotante (que puede convertir 0/0 en Inf o en un valor finito
+        # arbitrario según la dirección del redondeo).
         valid <- (1 - h) > 1e-8
         sqrt(mean((e[valid] / (1 - h[valid]))^2))
     })
@@ -167,27 +170,28 @@ evaluate_models <- function(models) {
 }
 
 
-## 4. Baseline: complete-case training (same population as 07)
+## 4. Línea base: entrenamiento de casos completos (misma población que 07)
 
 baseline_results <- evaluate_models(fit_all_models(train_complete))
 
 
-## 5. PMM imputation of missing log(y_total_m) among paid workers
+## 5. Imputación PMM del log(y_total_m) faltante entre trabajadores pagos
 
-# Predictive mean matching: fit a linear model of log_inc on the predictors
-# below using only rows with observed income, rank those rows by how close
-# their predicted value is to each missing row's predicted value, and impute
-# every missing row with the actual observed log_inc of one of its 5 nearest
-# matches (mice's default donor pool size) - never a model-based point
-# prediction, always a real value from someone similar. This mirrors how
-# statistical agencies (e.g. the US Census Bureau's CPS) impute missing
-# income via hot-deck/PMM. m = 5 independent random donor draws guard the
-# comparison below against depending on a single draw's luck; maxit = 1
-# because log_inc is the only incomplete variable here, so there is nothing
-# for the chained-equations algorithm to iterate against. The imputation
-# model is unweighted (fex_c only enters the substantive models re-fit in
-# section 6) - it exists purely to find plausible donors, not to estimate a
-# population parameter.
+# Predictive mean matching: ajusta un modelo lineal de log_inc sobre los
+# predictores de abajo usando solo las filas con ingreso observado, ordena esas
+# filas por qué tan cerca está su valor predicho del valor predicho de cada fila
+# faltante, e imputa cada fila faltante con el log_inc observado real de una de
+# sus 5 coincidencias más cercanas (el tamaño de pool de donantes por defecto de
+# mice) - nunca una predicción puntual basada en el modelo, siempre un valor real
+# de alguien parecido. Esto refleja cómo las agencias estadísticas (p. ej. la CPS
+# del US Census Bureau) imputan el ingreso faltante vía hot-deck/PMM. m = 5
+# sorteos aleatorios independientes de donante protegen la comparación de abajo
+# de depender de la suerte de un solo sorteo; maxit = 1 porque log_inc es la
+# única variable incompleta aquí, así que no hay nada contra lo que el algoritmo
+# de ecuaciones encadenadas itere. El modelo de imputación es sin ponderar (fex_c
+# solo entra en los modelos sustantivos reajustados en la sección 6) - existe
+# puramente para encontrar donantes plausibles, no para estimar un parámetro
+# poblacional.
 impute_vars <- c("log_inc", "age", "age2", "sex", "maxEducLevel", "relab",
                   "formal", "totalHoursWorked", "sizeFirm", "cuentaPropia")
 
@@ -199,12 +203,12 @@ set.seed(123)
 imp <- mice(impute_df, m = 5, method = "pmm", maxit = 1, printFlag = FALSE)
 
 
-## 6. Refit the ten specifications on each of the m=5 imputed training sets
+## 6. Reajustar las diez especificaciones sobre cada uno de los m=5 sets de entrenamiento imputados
 
-# complete(imp, i) preserves train_all's row order, so its log_inc column
-# can be substituted back into train_all directly - every other column
-# (fex_c, college, subsidio_familiar, ...) needed by fit_all_models() is
-# already there and untouched by the imputation.
+# complete(imp, i) preserva el orden de filas de train_all, así que su columna
+# log_inc se puede sustituir de vuelta en train_all directamente - cualquier otra
+# columna (fex_c, college, subsidio_familiar, ...) que necesite fit_all_models()
+# ya está ahí e intacta tras la imputación.
 imputed_results <- map_dfr(1:5, function(i) {
     train_imputed_i <- train_all |> mutate(log_inc = complete(imp, i)$log_inc)
     evaluate_models(fit_all_models(train_imputed_i))
@@ -213,7 +217,7 @@ imputed_results <- map_dfr(1:5, function(i) {
     summarise(across(c(`Validation RMSE`, `LOOCV RMSE`, AIC, BIC), mean), .groups = "drop")
 
 
-## 7. Comparison table: complete-case vs. PMM-imputed, export to LaTeX
+## 7. Tabla de comparación: casos completos vs. imputado por PMM, exportar a LaTeX
 
 comparison_table <- baseline_results |>
     rename_with(~ paste0(., " (completos)"), -model) |>
@@ -254,12 +258,12 @@ comparison_table_tex <- comparison_table |>
 writeLines(comparison_table_tex, "output/tables/section3_imputation_comparison.tex")
 
 
-## 8. Diagnostic: observed vs. imputed log-income density
+## 8. Diagnóstico: densidad del log-ingreso observado vs. imputado
 
-# Pools the imputed values from all 5 draws (each missing row contributes 5
-# points, one per imputation) against the single observed distribution, to
-# check the PMM draws land in a plausible range rather than piling up at
-# implausible values.
+# Junta los valores imputados de los 5 sorteos (cada fila faltante aporta 5
+# puntos, uno por imputación) contra la única distribución observada, para
+# revisar que los sorteos PMM caigan en un rango plausible en vez de amontonarse
+# en valores implausibles.
 imputed_values <- map_dfr(1:5, function(i) {
     completed <- complete(imp, i)
     tibble(log_inc = completed$log_inc[is.na(train_all$log_inc)])

@@ -245,10 +245,10 @@ by_formal_categorical
 
 ## 6. Income distribution histograms by group
 
-# Overlays each group's log-income distribution (semi-transparent) on top of
-# the original/overall sample distribution ("Total"), with a dashed vertical
-# line at each group's mean. Both the histogram (via the weight aesthetic)
-# and the means are weighted by fex_c, consistent with the tables above.
+# Overlays each group's log-income distribution (semi-transparent), with a
+# dashed vertical line at each group's mean. Both the histogram (via the
+# weight aesthetic) and the means are weighted by fex_c, consistent with the
+# tables above.
 # The x-axis is zoomed to the 0.1%-99.9% quantile range of log-income: with
 # the full range (log ~4 to ~18), a handful of extreme outliers stretch the
 # axis and flatten the histogram, hiding the shape of the bulk of the
@@ -270,9 +270,8 @@ plot_income_dist <- function(data, group_var, group_labels = NULL, title, filena
     d %>% mutate(group = as.character(.data[[group_var]]))
   }
 
-  group_levels <- c("Total", sort(unique(d$group)))
-  plot_data <- bind_rows(d, mutate(d, group = "Total")) %>%
-    mutate(group = factor(group, levels = group_levels))
+  group_levels <- sort(unique(d$group))
+  plot_data <- d %>% mutate(group = factor(group, levels = group_levels))
 
   group_means <- plot_data %>%
     group_by(group) %>%
@@ -280,9 +279,7 @@ plot_income_dist <- function(data, group_var, group_labels = NULL, title, filena
       mean_log = weighted.mean(log_income, w = fex_c, na.rm = TRUE), .groups = "drop"
     )
 
-  palette <- c("Total" = "grey40", setNames(
-    scales::hue_pal()(length(group_levels) - 1), setdiff(group_levels, "Total")
-  ))
+  palette <- setNames(scales::hue_pal()(length(group_levels)), group_levels)
 
   p <- ggplot(plot_data, aes(x = log_income, fill = group)) +
     geom_histogram(
@@ -291,7 +288,7 @@ plot_income_dist <- function(data, group_var, group_labels = NULL, title, filena
     ) +
     geom_vline(
       data = group_means, aes(xintercept = mean_log, color = group),
-      linetype = "dashed", linewidth = 0.8
+      linetype = "dashed", linewidth = 0.5
     ) +
     coord_cartesian(xlim = income_xlim) +
     scale_fill_manual(name = "Group", values = palette) +

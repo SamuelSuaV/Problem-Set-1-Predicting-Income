@@ -41,10 +41,10 @@
 \newcommand{\teamnumber}{XX}
 
 \title[Perfil edad--ingreso]{Perfil edad--ingreso laboral en Bogotá}
-\subtitle{Problem Set 1 \textbullet\ Sección 1 \textbullet\ Equipo \teamnumber}
-\author[Equipo \teamnumber]{María José Pérez \and Juan Manuel Lozano \and Samuel Suárez Valle}
+\subtitle{Problem Set 1 \textbullet\ Sección 1 }
+\author[Perez, Lozano, Suarez]{María José Pérez \and Juan Manuel Lozano \and Samuel Suárez Valle}
 \institute[Uniandes]{MECA 4107 --- Big Data y Machine Learning para Economía Aplicada}
-\date{\today}
+\date{Septiembre 2026}
 
 \begin{document}
 
@@ -67,9 +67,7 @@
         edad pico \textbf{\AgePeakCond\ años},
         IC 95\% $[\AgePeakCondLo,\ \AgePeakCondHi]$,
         \ $R^2 = \AgeRsqCond$.
-      \item El máximo cae \emph{dentro} del rango de edad observado y es coherente con la
-        teoría del capital humano: la inversión temprana se amortiza y después domina
-        la depreciación.
+      \item El máximo cae \emph{dentro} del rango de edad observado (Q3) y demuestra que la edad nos permite aproximar una apreciación y posterior depreciación del ingreso laboral en la vida adulta.
     \end{itemize}
   \end{block}
   \vfill
@@ -84,12 +82,16 @@
   y qué le dice ese perfil a la autoridad tributaria?}
   \vspace{0.6em}
   \begin{itemize}
-    \item Teoría del capital humano (Mincer): los retornos a la experiencia son
+    \item Teoría del capital humano (Mincer, 1974): los retornos a la experiencia son
       decrecientes $\Rightarrow$ el perfil edad--ingreso es cóncavo.
-    \item Una especificación cuadrática en la edad captura esa concavidad y entrega
-      una \emph{edad pico} interpretable, $\text{edad}^\ast = -\beta_2 / (2\beta_3)$.
-    \item Uso tributario: el perfil fija un ingreso esperado por edad; desviaciones
-      sistemáticas por debajo de ese perfil son una señal de posible sub-reporte.
+      \begin{itemize}
+      \item La inversión en capacitación disminuye mientras disminuye el tiempo para recuperar los costos.
+      \item El deterioro cognitivo causa mayores depreciaciones de las habilidades con la edad.
+      \item El conocimiento técnico adquirido en primeros años se hace obsoleto.
+      \end{itemize}
+    \item Especificación cuadrática en la edad captura esa concavidad y nos da edad pico: $\text{edad}^\ast = -\beta_2 / (2\beta_3)$.
+    \item En tributación: el perfil fija un ingreso esperado por edad; desviaciones
+      sistemáticas por debajo de ese perfil son una señal (más no evidencia contundente) de posible sub-reporte.
   \end{itemize}
 \end{frame}
 
@@ -100,22 +102,19 @@
     \item \textbf{Muestra:} ocupados de 18 años o más (\texttt{age >= 18 \& ocu == 1}).
     \item \textbf{Variable dependiente:} $\log$ del ingreso laboral mensual total
       (\texttt{y\_total\_m} $=$ asalariado $+$ independiente).
-    \item \textbf{Ingresos no positivos:} se excluyen (el logaritmo no está definido).
-      La no respuesta en \texttt{y\_total\_m} se concentra en trabajadores familiares
-      sin remuneración (\texttt{relab} 6--7), fuera del margen de interés.
     \item \textbf{Ponderación:} todas las regresiones usan \texttt{fex\_c}
-      (factor de expansión). El perfil describe a los trabajadores de Bogotá,
-      no a los \AgeNobs\ respondientes observados.
+      (factor de expansión).
   \end{itemize}
 \end{frame}
 
 % ---------------------------------------------------------------------------
-\begin{frame}{Evidencia descriptiva: los ingresos medios ya dibujan una joroba}
+\begin{frame}{Evidencia descriptiva: Ingresos medios y pico}
   \centering
   \includegraphics[height=0.80\textheight]{../output/figures/income_dist_age.png}
 
-  {\footnotesize Líneas punteadas: media (ponderada) de $\log$ ingreso por rango de
-  edad. El grupo 39--50 tiene la media más alta; el grupo 51--94 retrocede.}
+  {\footnotesize Líneas punteadas: media ponderada de $\log$ ingreso por rango de
+  edad. La media sube de 18--28 a 29--38, se estanca en 39--50 (prácticamente
+  empatada con 29--38) y retrocede en 51--94: igual que el perfil.}
 \end{frame}
 
 % ---------------------------------------------------------------------------
@@ -125,7 +124,7 @@
     \log(w_i) = \beta_1 + \beta_2\,\text{edad}_i + \beta_3\,\text{edad}_i^2 + u_i
   \]
 
-  \textbf{Condicional} (añade horas y tipo de empleo, sin otros controles, según el enunciado)
+  \textbf{Condicional}
   \[
     \log(w_i) = \beta_1 + \beta_2\,\text{edad}_i + \beta_3\,\text{edad}_i^2
       + \gamma\,\text{horas}_i + \sum_{k}\delta_k\,\text{relab}_{k,i} + u_i
@@ -134,7 +133,7 @@
   \vspace{0.4em}
   \begin{itemize}
     \item Edad pico implícita: $\text{edad}^\ast = -\beta_2 / (2\beta_3)$
-      (parábola cóncava si $\beta_3 < 0$).
+      (cóncava, dado $\beta_3 < 0$).
     \item IC del pico por \textbf{bootstrap}: \AgeBootReps\ remuestreos de individuos,
       reestimando en cada uno la misma especificación ponderada; percentiles 2.5 y 97.5
       de la distribución de $\text{edad}^\ast$.
@@ -155,7 +154,11 @@
 % ---------------------------------------------------------------------------
 \begin{frame}{Perfiles edad--ingreso estimados}
   \centering
-  \includegraphics[height=0.82\textheight]{../output/figures/age_income_profile.png}
+  \includegraphics[height=0.78\textheight]{../output/figures/age_income_profile.png}
+
+  {\footnotesize Del perfil condicional no interpretamos su \emph{altura} (nivel de
+  ingreso, que depende de las categorías base de horas y tipo de empleo): solo su
+  \emph{ancho} (concavidad) y la \emph{edad pico}.}
 \end{frame}
 
 % ---------------------------------------------------------------------------
@@ -178,14 +181,15 @@
     \end{column}
     \begin{column}{0.56\textwidth}
       \begin{itemize}
-        \item Ambos intervalos son estrechos ($\approx 1$ año de ancho) y quedan
-          cómodamente dentro del rango de edad observado.
+        \item Intervalos estrechos ($\approx 1$ año de ancho) y dentro del rango de edad observado.
         \item Al condicionar por horas y tipo de empleo, la edad pico se
           \textbf{desplaza hacia edades mayores} ($\approx +3$ años) y el perfil
           se aplana.
-        \item Lectura: parte del crecimiento temprano del ingreso no es la edad en
-          sí, sino más horas trabajadas y el paso hacia mejores modalidades de empleo.
-          Al mantenerlas fijas, el retorno puro a la edad es más plano y tardío.
+        \item Al controlar, la edad pierde sus efectos indirectos $\Rightarrow$ la curva se ensancha:
+          \begin{itemize}
+            \item \textbf{Horas de trabajo:} a edades extremas se trabaja menos tiempo.
+            \item \textbf{Tipo de empleo:} a edades extremas se trabaja en modalidades de menor ingreso.
+          \end{itemize}
       \end{itemize}
     \end{column}
   \end{columns}
@@ -200,8 +204,8 @@
     \item El pico se estima con \textbf{precisión} (IC bootstrap estrecho), pero el
       $R^2$ es \textbf{bajo} ($\AgeRsqUncond$ / $\AgeRsqCond$): la edad explica poco
       de la varianza individual del ingreso.
-    \item Para la autoridad tributaria: la edad da una referencia de ingreso esperado
-      por ciclo de vida, pero es un predictor débil por sí sola. Debe combinarse con
+    \item En contexto de tributación: la edad da una referencia de ingreso esperado
+      por ciclo de vida, pero es un predictor débil. Es útil combinarla con
       horas, tipo de empleo y otras características (Secciones 2 y 3).
   \end{itemize}
 \end{frame}

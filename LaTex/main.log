@@ -1,10 +1,10 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.26 (TeX Live 2024) (preloaded format=pdflatex 2024.11.20)  7 SEP 2026 11:50
+This is pdfTeX, Version 3.141592653-2.6-1.40.26 (TeX Live 2024) (preloaded format=pdflatex 2024.11.20)  7 SEP 2026 20:20
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
  %&-line parsing enabled.
-**"/Users/samuel/Documents/Documents_Samuel MacBook Air/Universidad/Noveno Semestre/Big Data & ML General/Talleres/Predicting_Income_Taller1/Problem Set 1: Predicting Income/LaTex/main.tex"
-(/Users/samuel/Documents/Documents_Samuel MacBook Air/Universidad/Noveno Semestre/Big Data & ML General/Talleres/Predicting_Income_Taller1/Problem Set 1: Predicting Income/LaTex/main.tex
+**"/Users/samuel/Documents/Documents_Samuel MacBook Air/Universidad/Noveno Semestre/Big Data y ML General/Talleres/Predicting_Income_Taller1/Problem Set 1 - Predicting Income/LaTex/main"
+(/Users/samuel/Documents/Documents_Samuel MacBook Air/Universidad/Noveno Semestre/Big Data y ML General/Talleres/Predicting_Income_Taller1/Problem Set 1 - Predicting Income/LaTex/main.tex
 LaTeX2e <2023-11-01> patch level 1
 L3 programming layer <2024-02-20>
 (/usr/local/texlive/2024/texmf-dist/tex/latex/base/article.cls
@@ -232,7 +232,7 @@ Package caption Info: longtable package is loaded.
  (/usr/local/texlive/2024/texmf-dist/tex/latex/caption/ltcaption.sty
 Package: ltcaption 2021/01/08 v1.4c longtable captions (AR)
 ))
-Package hyperref Info: Option `colorlinks' set `true' on input line 11.
+Package hyperref Info: Option `colorlinks' set `true' on input line 13.
  (/usr/local/texlive/2024/texmf-dist/tex/latex/l3backend/l3backend-pdftex.def
 File: l3backend-pdftex.def 2024-02-20 L3 backend support: PDF output (pdfTeX)
 \l__color_backend_stack_int=\count289
@@ -240,24 +240,24 @@ File: l3backend-pdftex.def 2024-02-20 L3 backend support: PDF output (pdfTeX)
 ) (./main.aux)
 \openout1 = `main.aux'.
 
-LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 17.
-LaTeX Font Info:    ... okay on input line 17.
-LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 17.
-LaTeX Font Info:    ... okay on input line 17.
-LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 17.
-LaTeX Font Info:    ... okay on input line 17.
-LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 17.
-LaTeX Font Info:    ... okay on input line 17.
-LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 17.
-LaTeX Font Info:    ... okay on input line 17.
-LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 17.
-LaTeX Font Info:    ... okay on input line 17.
-LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 17.
-LaTeX Font Info:    ... okay on input line 17.
-LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 17.
-LaTeX Font Info:    ... okay on input line 17.
-LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 17.
-LaTeX Font Info:    ... okay on input line 17.
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 19.
+LaTeX Font Info:    ... okay on input line 19.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 19.
+LaTeX Font Info:    ... okay on input line 19.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 19.
+LaTeX Font Info:    ... okay on input line 19.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 19.
+LaTeX Font Info:    ... okay on input line 19.
+LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 19.
+LaTeX Font Info:    ... okay on input line 19.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 19.
+LaTeX Font Info:    ... okay on input line 19.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 19.
+LaTeX Font Info:    ... okay on input line 19.
+LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 19.
+LaTeX Font Info:    ... okay on input line 19.
+LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 19.
+LaTeX Font Info:    ... okay on input line 19.
 
 *geometry* driver: auto-detecting
 *geometry* detected driver: pdftex
@@ -318,7 +318,7 @@ File: color.cfg 2016/01/02 v1.6 sample color configuration
 )
 Package color Info: Driver file: pdftex.def on input line 149.
  (/usr/local/texlive/2024/texmf-dist/tex/latex/graphics/mathcolor.ltx))
-Package hyperref Info: Link coloring ON on input line 17.
+Package hyperref Info: Link coloring ON on input line 19.
  (./main.out) (./main.out)
 \@outlinefile=\write3
 \openout3 = `main.out'.
@@ -326,11 +326,11 @@ Package hyperref Info: Link coloring ON on input line 17.
 Package caption Info: Begin \AtBeginDocument code.
 Package caption Info: End \AtBeginDocument code.
 LaTeX Font Info:    External font `cmex10' loaded for size
-(Font)              <12> on input line 20.
+(Font)              <12> on input line 22.
 LaTeX Font Info:    External font `cmex10' loaded for size
-(Font)              <8> on input line 20.
+(Font)              <8> on input line 22.
 LaTeX Font Info:    External font `cmex10' loaded for size
-(Font)              <6> on input line 20.
+(Font)              <6> on input line 22.
  (./main.toc
 LaTeX Font Info:    External font `cmex10' loaded for size
 (Font)              <10.95> on input line 4.
@@ -342,43 +342,43 @@ LaTeX Font Info:    External font `cmex10' loaded for size
 
 {/usr/local/texlive/2024/texmf-var/fonts/map/pdftex/updmap/pdftex.map}] (../output/tables/balance_table.tex)
 LaTeX Font Info:    External font `cmex10' loaded for size
-(Font)              <9> on input line 47.
+(Font)              <9> on input line 49.
 LaTeX Font Info:    External font `cmex10' loaded for size
-(Font)              <5> on input line 47.
+(Font)              <5> on input line 49.
  (../output/tables/general_continuous.tex) (../output/tables/general_categorical.tex) [2] (../output/tables/by_sex_continuous.tex) (../output/tables/by_sex_categorical.tex) (../output/tables/by_age_continuous.tex) [3] (../output/tables/by_age_categorical.tex) (../output/tables/by_formal_continuous.tex) (../output/tables/by_formal_categorical.tex)
 <../output/figures/income_dist_sex.png, id=86, 578.16pt x 361.35pt>
 File: ../output/figures/income_dist_sex.png Graphic file (type png)
 <use ../output/figures/income_dist_sex.png>
-Package pdftex.def Info: ../output/figures/income_dist_sex.png  used on input line 96.
+Package pdftex.def Info: ../output/figures/income_dist_sex.png  used on input line 98.
 (pdftex.def)             Requested size: 399.29463pt x 249.55783pt.
  [4]
 <../output/figures/income_dist_age.png, id=95, 578.16pt x 361.35pt>
 File: ../output/figures/income_dist_age.png Graphic file (type png)
 <use ../output/figures/income_dist_age.png>
-Package pdftex.def Info: ../output/figures/income_dist_age.png  used on input line 102.
+Package pdftex.def Info: ../output/figures/income_dist_age.png  used on input line 104.
 (pdftex.def)             Requested size: 399.29463pt x 249.55783pt.
  [5 <../output/figures/income_dist_sex.png>]
 <../output/figures/income_dist_formal.png, id=102, 578.16pt x 361.35pt>
 File: ../output/figures/income_dist_formal.png Graphic file (type png)
 <use ../output/figures/income_dist_formal.png>
-Package pdftex.def Info: ../output/figures/income_dist_formal.png  used on input line 108.
+Package pdftex.def Info: ../output/figures/income_dist_formal.png  used on input line 110.
 (pdftex.def)             Requested size: 399.29463pt x 249.55783pt.
 <../output/figures/scatter_income_age_sex.png, id=104, 578.16pt x 361.35pt>
 File: ../output/figures/scatter_income_age_sex.png Graphic file (type png)
 <use ../output/figures/scatter_income_age_sex.png>
-Package pdftex.def Info: ../output/figures/scatter_income_age_sex.png  used on input line 122.
+Package pdftex.def Info: ../output/figures/scatter_income_age_sex.png  used on input line 124.
 (pdftex.def)             Requested size: 399.29463pt x 249.55783pt.
  [6 <../output/figures/income_dist_age.png> <../output/figures/income_dist_formal.png>]
 <../output/figures/scatter_income_age_educ.png, id=111, 578.16pt x 361.35pt>
 File: ../output/figures/scatter_income_age_educ.png Graphic file (type png)
 <use ../output/figures/scatter_income_age_educ.png>
-Package pdftex.def Info: ../output/figures/scatter_income_age_educ.png  used on input line 128.
+Package pdftex.def Info: ../output/figures/scatter_income_age_educ.png  used on input line 130.
 (pdftex.def)             Requested size: 399.29463pt x 249.55783pt.
  [7 <../output/figures/scatter_income_age_sex.png>]
 <../output/figures/scatter_income_age_formal.png, id=119, 578.16pt x 361.35pt>
 File: ../output/figures/scatter_income_age_formal.png Graphic file (type png)
 <use ../output/figures/scatter_income_age_formal.png>
-Package pdftex.def Info: ../output/figures/scatter_income_age_formal.png  used on input line 134.
+Package pdftex.def Info: ../output/figures/scatter_income_age_formal.png  used on input line 136.
 (pdftex.def)             Requested size: 399.29463pt x 249.55783pt.
  [8 <../output/figures/scatter_income_age_educ.png> <../output/figures/scatter_income_age_formal.png>] (./main.aux)
  ***********
@@ -390,12 +390,12 @@ Package rerunfilecheck Info: File `main.out' has not changed.
  ) 
 Here is how much of TeX's memory you used:
  10645 strings out of 474116
- 174155 string characters out of 5743681
+ 174158 string characters out of 5743681
  1949187 words of memory out of 5000000
  32831 multiletter control sequences out of 15000+600000
  564487 words of font info for 58 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 75i,9n,79p,429b,462s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 75i,9n,79p,426b,462s stack positions out of 10000i,1000n,20000p,200000b,200000s
 </usr/local/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx10.pfb></usr/local/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx12.pfb></usr/local/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmex10.pfb></usr/local/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi6.pfb></usr/local/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi9.pfb></usr/local/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb></usr/local/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmr12.pfb></usr/local/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmr17.pfb></usr/local/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmr6.pfb></usr/local/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmr8.pfb></usr/local/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmr9.pfb></usr/local/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy9.pfb></usr/local/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmtt10.pfb></usr/local/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmtt9.pfb>
 Output written on main.pdf (8 pages, 2620744 bytes).
 PDF statistics:

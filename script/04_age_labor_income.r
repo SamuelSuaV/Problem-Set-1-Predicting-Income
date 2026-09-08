@@ -301,15 +301,25 @@ profiles <- bind_rows(
   profile2 |> mutate(model = "Conditional")
 )
 
-# e. Plot both curves, marking each specification's peak age. Only the shape
-# and the peak age are comparable across curves: their vertical position
-# depends on the reference worker chosen above.
+# e. Plot both curves, marking each specification's peak age with a dashed line
+# and the 95% bootstrap percentile CI for that peak age (ci1/ci2 from section
+# 6d, the same interval reported in the regression table and the Section 1
+# deck) as a shaded vertical band. No band is drawn around the curves
+# themselves: the section's uncertainty statement is about the peak age, not
+# the fitted profile. Only the shape and the peak age are comparable across
+# curves -- their vertical position depends on the reference worker above.
 peaks <- tibble(
   model = c("Unconditional", "Conditional"),
-  peak_age = c(unname(peak_age1), unname(peak_age2))
+  peak_age = c(unname(peak_age1), unname(peak_age2)),
+  ci_lo = c(ci1[1], ci2[1]),
+  ci_hi = c(ci1[2], ci2[2])
 )
 
 age_profile_plot <- ggplot(profiles, aes(x = age, y = log_inc_pred, color = model)) +
+  geom_rect(
+    data = peaks, aes(xmin = ci_lo, xmax = ci_hi, fill = model),
+    ymin = -Inf, ymax = Inf, inherit.aes = FALSE, alpha = 0.15
+  ) +
   geom_line(linewidth = 1) +
   geom_vline(
     data = peaks, aes(xintercept = peak_age, color = model),
@@ -319,9 +329,13 @@ age_profile_plot <- ggplot(profiles, aes(x = age, y = log_inc_pred, color = mode
     name = "Specification",
     values = c(Unconditional = "#6c0a8a", Conditional = "#4daad5")
   ) +
+  scale_fill_manual(
+    name = "Specification",
+    values = c(Unconditional = "#6c0a8a", Conditional = "#4daad5")
+  ) +
   labs(
     title = "Age-income profile: unconditional vs. conditional",
-    subtitle = "Dashed lines mark the implied peak age of each specification",
+    subtitle = "Dashed line: implied peak age. Shaded band: 95% bootstrap CI for the peak age",
     x = "Age",
     y = "Predicted log(total monthly income)"
   ) +

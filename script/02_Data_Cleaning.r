@@ -40,8 +40,14 @@ geih_scrap <- readRDS("data/geih_scrap.rds")
 
 # Restricted_sample: only employed adults (age >= 18 and employment status = 1).
 # Removed unecessary variables
+# We also drop the single respondent with a missing maxEducLevel: education is
+# a control in every conditional specification downstream, so keeping the row
+# would leave the unconditional models running on one more observation than
+# the conditional ones. The value is missing because that person answered
+# p6210 = 9 ("no sabe, no informa"), i.e. a genuine non-response, and it is
+# 1 row out of 16,542.
 geih_clean <- geih_scrap %>%
-  filter(age >= 18, ocu == 1) %>%
+  filter(age >= 18, ocu == 1, !is.na(maxEducLevel)) %>%
   select(-fweight, -fex_dpto, -depto, -clase)
 
 
@@ -305,8 +311,10 @@ writeLines(relab_missing_rate_tex, "output/tables/relab_missing_rate.tex")
 
 ## 7. Save clean data
 
-# geih_clean is exported as-is: missing values (e.g. y_total_m) are left
-# untouched here, not dropped or imputed.
+# geih_clean is exported with its missing values (e.g. y_total_m) left
+# untouched, neither dropped nor imputed: how to treat them is an analysis
+# decision each section justifies on its own. The only exception is the
+# maxEducLevel non-response dropped in section 3.
 saveRDS(geih_clean, file = "data/geih_clean.rds")
 
 ################################End of script###################################

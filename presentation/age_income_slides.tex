@@ -23,9 +23,12 @@
 \usepackage{amsmath}
 \usepackage{xcolor}
 
-% Palette matches the age-income profile figure (04_age_labor_income.r).
+% uandespurple: deck accent (frame titles, structure). specuncond/speccond
+% match the two curves in the age-income profile figure (04_age_labor_income.r)
+% so the spec labels below carry the same colour as the plot.
 \definecolor{uandespurple}{HTML}{6C0A8A}
-\definecolor{uandesblue}{HTML}{4DAAD5}
+\definecolor{specuncond}{HTML}{235DA3}
+\definecolor{speccond}{HTML}{AD0D5D}
 
 \usetheme{Boadilla}
 \setbeamercolor{structure}{fg=uandespurple}
@@ -156,23 +159,25 @@
   \centering
   \includegraphics[height=0.78\textheight]{../output/figures/age_income_profile.png}
 
-  {\footnotesize Del perfil condicional no interpretamos su \emph{altura} (nivel de
-  ingreso, que depende de las categorías base de horas y tipo de empleo): solo su
-  \emph{ancho} (concavidad) y la \emph{edad pico}.}
+  {\footnotesize Líneas punteadas: edad pico implícita de cada especificación;
+  bandas sombreadas: su IC bootstrap 95\%. Eje vertical en escala logarítmica,
+  etiquetado en pesos. Del perfil condicional no interpretamos su \emph{altura}
+  (nivel de ingreso, que depende de las categorías base de horas y tipo de
+  empleo): solo su \emph{ancho} (concavidad) y la \emph{edad pico}.}
 \end{frame}
 
 % ---------------------------------------------------------------------------
 \begin{frame}{Edad pico e intervalo de confianza}
   \begin{columns}[T]
     \begin{column}{0.42\textwidth}
-      \textcolor{uandespurple}{\textbf{Incondicional}}
+      \textcolor{specuncond}{\textbf{Incondicional}}
       \begin{itemize}
         \item Edad pico: \textbf{\AgePeakUncond\ años}
         \item IC 95\%: $[\AgePeakUncondLo,\ \AgePeakUncondHi]$
         \item $R^2 = \AgeRsqUncond$
       \end{itemize}
       \vspace{0.6em}
-      \textcolor{uandesblue}{\textbf{Condicional}}
+      \textcolor{speccond}{\textbf{Condicional}}
       \begin{itemize}
         \item Edad pico: \textbf{\AgePeakCond\ años}
         \item IC 95\%: $[\AgePeakCondLo,\ \AgePeakCondHi]$

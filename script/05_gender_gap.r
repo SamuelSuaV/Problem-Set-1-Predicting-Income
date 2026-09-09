@@ -354,7 +354,96 @@ peak_table_tex <- peak_table |>
 
 writeLines(peak_table_tex, "output/tables/gender_peak_age_by_sex.tex")
 
-# e. Exportaciones listas para el deck de la Sección 2
+# e. Tabla completa: un renglón por coeficiente (no solo el de female), para el
+# documento escrito. gap_table/gap_table_tex de arriba queda para las
+# diapositivas, donde el objeto de interés es solo la brecha; esta versión
+# reporta todo lo que estiman las tres especificaciones (capital humano y
+# efectos fijos de educación incluidos), con el error estándar robusto entre
+# paréntesis.
+term_labels <- c(
+  "(Intercept)"            = "Intercepto",
+  "female"                 = "Mujer",
+  "age"                    = "Edad",
+  "age2"                   = "Edad$^2$",
+  "factor(maxEducLevel)3"  = "Educ.: primaria incompleta",
+  "factor(maxEducLevel)4"  = "Educ.: primaria completa",
+  "factor(maxEducLevel)5"  = "Educ.: secundaria incompleta",
+  "factor(maxEducLevel)6"  = "Educ.: secundaria completa",
+  "factor(maxEducLevel)7"  = "Educ.: terciaria",
+  "totalHoursWorked"       = "Horas trabajadas"
+)
+
+# age2 usa 6 decimales en vez de 4: su estimación y su error estándar son un
+# orden de magnitud más chicos que los del resto (~0.0009 y ~0.00003), y con
+# solo 4 decimales el error estándar se imprime como 0.0000, como si fuera
+# cero (misma trampa de redondeo que en 04_age_labor_income.r).
+# formatC() no acepta un vector de decimales (digits) - solo un escalar por
+# llamada -, asi que se aplica fila por fila con pmap_chr en vez de vectorizar
+# el argumento digits directamente.
+cell_est_se <- function(estimate, std.error, term) {
+  purrr::pmap_chr(list(estimate, std.error, term), function(est, se, trm) {
+    if (is.na(est)) return("")
+    d <- if (trm == "age2") 6 else 4
+    paste0(
+      formatC(est, format = "f", digits = d), " (",
+      formatC(se, format = "f", digits = d), ")"
+    )
+  })
+}
+
+full_table <- bind_rows(
+  tidy(gap_uncond) |> mutate(spec = "(1) Uncondicional"),
+  tidy(gap_hk)      |> mutate(spec = "(2) + edad, edad2, educación"),
+  tidy(gap_hours)   |> mutate(spec = "(3) + horas trabajadas")
+) |>
+  mutate(cell = cell_est_se(estimate, std.error, term)) |>
+  select(term, spec, cell) |>
+  pivot_wider(names_from = spec, values_from = cell, values_fill = "") |>
+  mutate(term = factor(term, levels = names(term_labels))) |>
+  arrange(term) |>
+  mutate(term = recode(as.character(term), !!!term_labels))
+
+# f. Filas de pie: SE bootstrap de female (el que exige el enunciado), R2 y N
+# de cada especificación.
+extra_rows_full <- tibble(
+  term = c("Mujer: EE bootstrap", "$R^2$", "N"),
+  `(1) Uncondicional` = c(
+    formatC(gap_table$SE_boot[1], format = "f", digits = 4),
+    formatC(gap_table$R2[1], format = "f", digits = 3),
+    format(gap_table$N[1], big.mark = ",")
+  ),
+  `(2) + edad, edad2, educación` = c(
+    formatC(gap_table$SE_boot[2], format = "f", digits = 4),
+    formatC(gap_table$R2[2], format = "f", digits = 3),
+    format(gap_table$N[2], big.mark = ",")
+  ),
+  `(3) + horas trabajadas` = c(
+    formatC(gap_table$SE_boot[3], format = "f", digits = 4),
+    formatC(gap_table$R2[3], format = "f", digits = 3),
+    format(gap_table$N[3], big.mark = ",")
+  )
+)
+
+full_table <- bind_rows(full_table, extra_rows_full)
+
+full_table_tex <- full_table |>
+  rename(Término = term) |>
+  kbl(
+    format = "latex", booktabs = TRUE, escape = FALSE,
+    caption = paste(
+      "Gender labour income gap: full coefficient table",
+      "(robust standard errors in parentheses)"
+    ),
+    label = "gender_gap_full"
+  ) |>
+  kable_styling(latex_options = c("hold_position", "scale_down")) |>
+  row_spec(nrow(full_table) - 3, extra_latex_after = "\\midrule") |>
+  as.character() |>
+  force_float_h()
+
+writeLines(full_table_tex, "output/tables/gender_gap_full_table.tex")
+
+# g. Exportaciones listas para el deck de la Sección 2
 # (latex/presentation/gender_gap_slides.tex). Mismo patrón que 04: dos archivos
 # regenerados en cada corrida, para que las diapositivas no tengan ningún número
 # escrito a mano y no puedan quedar desactualizadas.

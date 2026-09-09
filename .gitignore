@@ -30,7 +30,6 @@ Rplots.pdf
 *.pdf
 *.html
 
-# Ignore all `.md` files, but keep the README and CLAUDE.md.
+# Ignore all `.md` files, but keep the README.
 *.md
 !README.md
-!CLAUDE.md

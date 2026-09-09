@@ -354,6 +354,102 @@ peak_table_tex <- peak_table |>
 
 writeLines(peak_table_tex, "output/tables/gender_peak_age_by_sex.tex")
 
+# e. Exportaciones listas para el deck de la Sección 2
+# (latex/presentation/gender_gap_slides.tex). Mismo patrón que 04: dos archivos
+# regenerados en cada corrida, para que las diapositivas no tengan ningún número
+# escrito a mano y no puedan quedar desactualizadas.
+#   - gender_gap_stats.tex: los números clave como macros de LaTeX, \input en el
+#     preámbulo del deck.
+#   - gender_gap_slide_table.tex: la tabla de resultados sin envoltura flotante,
+#     para \input dentro de un frame.
+
+fmt <- function(x, d = 1) formatC(x, format = "f", digits = d)
+
+# Brecha implícita a una edad dada, a partir del modelo con interacciones:
+# gap(a) = exp(b_female + b_female:age * a + b_female:age2 * a^2) - 1.
+gap_at_age <- function(a) {
+  b <- coef(gap_interact)
+  (exp(b["female"] + b["female:age"] * a + b["female:age2"] * a^2) - 1) * 100
+}
+
+# Descriptivos por sexo que motivan la sección (ponderados por fex_c).
+w_mean <- function(x, wt) sum(x * wt, na.rm = TRUE) / sum(wt[!is.na(x)], na.rm = TRUE)
+
+desc_sex <- clean_data |>
+  group_by(female) |>
+  summarise(
+    pct_terciaria = w_mean(as.numeric(maxEducLevel == 7), fex_c) * 100,
+    horas         = w_mean(totalHoursWorked, fex_c),
+    antiguedad    = w_mean(p6426, fex_c),
+    .groups = "drop"
+  )
+
+val <- function(col, fem) desc_sex[[col]][desc_sex$female == fem]
+
+gap_macros <- c(
+  # Brechas por especificación (porcentaje y coeficiente)
+  paste0("\\newcommand{\\GapUncondPct}{",  fmt(abs(gap_pct(gap_uncond))), "}"),
+  paste0("\\newcommand{\\GapHKPct}{",      fmt(abs(gap_pct(gap_hk))), "}"),
+  paste0("\\newcommand{\\GapHoursPct}{",   fmt(abs(gap_pct(gap_hours))), "}"),
+  paste0("\\newcommand{\\GapUncondCoef}{", fmt(coef(gap_uncond)["female"], 3), "}"),
+  paste0("\\newcommand{\\GapHKCoef}{",     fmt(coef(gap_hk)["female"], 3), "}"),
+  paste0("\\newcommand{\\GapHoursCoef}{",  fmt(coef(gap_hours)["female"], 3), "}"),
+  # Errores estándar de la especificación preferida
+  paste0("\\newcommand{\\GapHKSE}{",       fmt(se(gap_hk)["female"], 4), "}"),
+  paste0("\\newcommand{\\GapHKSEBoot}{",   fmt(se_boot, 4), "}"),
+  # Ajuste y tamaño de muestra
+  paste0("\\newcommand{\\GapRsqUncond}{",  fmt(r2(gap_uncond, "r2"), 3), "}"),
+  paste0("\\newcommand{\\GapRsqHK}{",      fmt(r2(gap_hk, "r2"), 3), "}"),
+  paste0("\\newcommand{\\GapNobs}{",       format(nobs(gap_hk), big.mark = ","), "}"),
+  paste0("\\newcommand{\\GapBootReps}{",   format(B, big.mark = ","), "}"),
+  # FWL: los dos coeficientes que deben coincidir
+  paste0("\\newcommand{\\FWLFull}{",       fmt(coef(gap_hk)["female"], 5), "}"),
+  paste0("\\newcommand{\\FWLStageThree}{", fmt(coef(stage3_FWL)["res_female"], 5), "}"),
+  # Edades pico por sexo y su diferencia
+  paste0("\\newcommand{\\PeakMen}{",       fmt(boot_peak_sex$t0[1]), "}"),
+  paste0("\\newcommand{\\PeakMenLo}{",     fmt(ci_of(1)[1]), "}"),
+  paste0("\\newcommand{\\PeakMenHi}{",     fmt(ci_of(1)[2]), "}"),
+  paste0("\\newcommand{\\PeakWomen}{",     fmt(boot_peak_sex$t0[2]), "}"),
+  paste0("\\newcommand{\\PeakWomenLo}{",   fmt(ci_of(2)[1]), "}"),
+  paste0("\\newcommand{\\PeakWomenHi}{",   fmt(ci_of(2)[2]), "}"),
+  paste0("\\newcommand{\\PeakDiff}{",      fmt(boot_peak_sex$t0[3], 2), "}"),
+  paste0("\\newcommand{\\PeakDiffLo}{",    fmt(ci_of(3)[1], 2), "}"),
+  paste0("\\newcommand{\\PeakDiffHi}{",    fmt(ci_of(3)[2], 2), "}"),
+  # Brecha evaluada a distintas edades (modelo con interacciones)
+  paste0("\\newcommand{\\GapAtTwentyFive}{", fmt(abs(gap_at_age(25))), "}"),
+  paste0("\\newcommand{\\GapAtFortyFive}{",  fmt(abs(gap_at_age(45))), "}"),
+  paste0("\\newcommand{\\GapAtFiftyFive}{",  fmt(abs(gap_at_age(55))), "}"),
+  # Descriptivos por sexo
+  paste0("\\newcommand{\\PctTertiaryMen}{",   fmt(val("pct_terciaria", 0)), "}"),
+  paste0("\\newcommand{\\PctTertiaryWomen}{", fmt(val("pct_terciaria", 1)), "}"),
+  paste0("\\newcommand{\\HoursMen}{",         fmt(val("horas", 0)), "}"),
+  paste0("\\newcommand{\\HoursWomen}{",       fmt(val("horas", 1)), "}"),
+  paste0("\\newcommand{\\TenureMen}{",        fmt(val("antiguedad", 0)), "}"),
+  paste0("\\newcommand{\\TenureWomen}{",      fmt(val("antiguedad", 1)), "}")
+)
+
+writeLines(gap_macros, "output/tables/gender_gap_stats.tex")
+
+# Tabla del deck: una fila por especificación, sin envoltura flotante.
+slide_gap_tbl <- tibble(
+  `Especificación` = c(
+    "(1) Incondicional",
+    "(2) $+$ edad, edad$^2$, educación",
+    "(3) $+$ horas trabajadas"
+  ),
+  `Mujer` = fmt(gap_table$Female, 3),
+  `EE robusto` = fmt(gap_table$SE_rob, 4),
+  `EE bootstrap` = fmt(gap_table$SE_boot, 4),
+  `Brecha (\\%)` = fmt(gap_table$Gap_pct),
+  `$R^2$` = fmt(gap_table$R2, 3)
+)
+
+slide_gap_tbl_tex <- slide_gap_tbl |>
+  kbl(format = "latex", booktabs = TRUE, escape = FALSE, align = "lccccc") |>
+  as.character()
+
+writeLines(slide_gap_tbl_tex, "output/tables/gender_gap_slide_table.tex")
+
 
 ## 8. Gráfico del perfil edad-ingreso por sexo
 

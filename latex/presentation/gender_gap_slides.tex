@@ -23,6 +23,8 @@
 \usepackage{graphicx}
 \usepackage{amsmath}
 \usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, positioning, calc}
 
 % uandespurple: acento del deck (títulos de frame, estructura). colmen/colwomen
 % coinciden con las dos curvas de la figura de perfiles por sexo
@@ -31,6 +33,25 @@
 \definecolor{uandespurple}{HTML}{6C0A8A}
 \definecolor{colmen}{HTML}{235DA3}
 \definecolor{colwomen}{HTML}{AD0D5D}
+
+% alerta/mejora: solo para el waterfall de la descomposición. Deliberadamente
+% NO reusamos colmen/colwomen ahí, porque en ese gráfico se leerían como
+% "hombres/mujeres" en vez de "la brecha sube / la brecha baja".
+\definecolor{alerta}{HTML}{C1440E}
+\definecolor{mejora}{HTML}{1B7A43}
+
+% Marca de "corte" (//) sobre el punto medio del segmento #1--#2: rota dos
+% barras cortas para que queden siempre perpendiculares a la flecha, sin
+% importar su ángulo. La usa el DAG de mediadores.
+\newcommand{\cutmark}[2]{%
+  \pgfmathanglebetweenpoints{\pgfpointanchor{#1}{center}}{\pgfpointanchor{#2}{center}}%
+  \edef\cutang{\pgfmathresult}%
+  \coordinate (cm@mid) at ($(#1)!0.5!(#2)$);
+  \draw[line width=1.6pt, uandespurple, rotate around={\cutang:(cm@mid)}]
+    ($(cm@mid)+(-0.09,-0.19)$) -- ($(cm@mid)+(-0.09,0.19)$);
+  \draw[line width=1.6pt, uandespurple, rotate around={\cutang:(cm@mid)}]
+    ($(cm@mid)+(0.09,-0.19)$) -- ($(cm@mid)+(0.09,0.19)$);
+}
 
 \usetheme{Boadilla}
 \setbeamercolor{structure}{fg=uandespurple}
@@ -184,6 +205,71 @@
 \end{frame}
 
 % ---------------------------------------------------------------------------
+\begin{frame}{Qué pregunta responde cada control}
+\begin{center}
+% Limitado por ALTURA (no por ancho): con la leyenda dentro del lienzo, fijar
+% el ancho hacía que el conjunto se saliera por abajo del frame.
+\resizebox{!}{6.4cm}{%
+\begin{tikzpicture}[
+  >=Stealth,
+  every node/.style={font=\small},
+  endpoint/.style={rectangle, rounded corners=2pt, draw=uandespurple, very thick,
+                fill=uandespurple, text=white, font=\bfseries\small,
+                minimum width=2.1cm, minimum height=1.0cm, align=center},
+  mediator/.style={rectangle, rounded corners=2pt, draw=uandespurple, thick,
+                    fill=white, text=black, font=\small,
+                    minimum width=2.7cm, minimum height=0.9cm, align=center},
+  noconf/.style={rectangle, rounded corners=2pt, draw=gray, thick, dashed,
+                  fill=white, text=gray!70!black, font=\small,
+                  minimum width=2.1cm, minimum height=0.8cm, align=center},
+  direct/.style={-{Stealth[length=3.2mm]}, line width=1.6pt, uandespurple},
+  blocked/.style={-{Stealth[length=2.6mm]}, line width=1pt, gray, densely dashed},
+  plainarrow/.style={-{Stealth[length=2.6mm]}, line width=1pt, gray!70!black},
+  tag/.style={font=\scriptsize\bfseries, uandespurple}
+]
+
+\node[endpoint] (sexo) at (0,0) {SEXO};
+\node[endpoint] (ingreso) at (11,0) {INGRESO};
+
+\node[mediator] (educ) at (5.5,3.0) {EDUCACIÓN};
+\node[mediator] (horas) at (5.5,1.0) {HORAS\\TRABAJADAS};
+\node[mediator] (ocup) at (5.5,-2.6) {OCUPACIÓN /\\FORMALIDAD};
+
+\node[noconf] (edad) at (11,-3.6) {EDAD};
+
+% camino directo: lo que queda al bloquear todo lo demás
+\draw[direct] (sexo) -- (ingreso);
+
+% caminos mediados: se bloquean al controlar
+\draw[blocked] (sexo) -- (educ); \cutmark{sexo}{educ}
+\draw[blocked] (educ) -- (ingreso); \cutmark{educ}{ingreso}
+\node[tag, above=1pt of educ] {bloqueado en (2)};
+
+\draw[blocked] (sexo) -- (horas); \cutmark{sexo}{horas}
+\draw[blocked] (horas) -- (ingreso); \cutmark{horas}{ingreso}
+\node[tag, above=1pt of horas] {bloqueado en (3)};
+
+\draw[blocked] (sexo) -- (ocup); \cutmark{sexo}{ocup}
+\draw[blocked] (ocup) -- (ingreso); \cutmark{ocup}{ingreso}
+\node[tag, below=1pt of ocup, align=center] {no estimado\\en este PS};
+
+% edad: no depende del sexo, solo compone la muestra
+\draw[plainarrow] (edad) -- (ingreso);
+
+\node[align=left, font=\scriptsize, text=black, draw=gray!50, fill=white,
+      rounded corners=1pt, inner sep=3pt, anchor=north west] at (-1.4,-4.4) {
+  {\color{uandespurple}\bfseries --$\to$} efecto directo (persiste en (1)--(3))\\
+  {\color{gray} //$\to$} camino bloqueado al controlar (n.\'{u}mero = especificaci\'{o}n)\\
+  {\color{gray} - -} EDAD: no depende del sexo, solo compone la muestra
+};
+
+\end{tikzpicture}%
+}
+\end{center}
+\footnotesize Cada mediador bloqueado cambia la pregunta que responde el coeficiente de sexo: controlar no elimina un ``sesgo'', redefine la comparación. EDAD entra en (2) pero nunca fue un canal del sexo.
+\end{frame}
+
+% ---------------------------------------------------------------------------
 \begin{frame}{Resultados: la brecha por especificación}
   \centering
   {\small \input{../../output/tables/gender_gap_slide_table.tex}}
@@ -201,6 +287,61 @@
   \vspace{0.3em}
   {\footnotesize Regresiones ponderadas por \texttt{fex\_c}. Bootstrap con
   \GapBootReps\ remuestreos de individuos.}
+\end{frame}
+
+% ---------------------------------------------------------------------------
+\begin{frame}{La brecha crece al controlar por capital humano}
+\begin{center}
+\resizebox{!}{6.0cm}{%
+\begin{tikzpicture}[
+  every node/.style={font=\small},
+  total/.style={draw=uandespurple, very thick, fill=uandespurple!18},
+  down/.style={draw=alerta, very thick, fill=alerta!75},
+  up/.style={draw=mejora, very thick, fill=mejora!75},
+  conn/.style={draw=gray, densely dotted, line width=0.6pt},
+  vlabel/.style={font=\footnotesize\bfseries},
+  clabel/.style={font=\scriptsize, align=center}
+]
+
+\def\s{0.15} % cm por punto porcentual
+
+\draw[gray!60, dashed, line width=0.4pt] (-0.6,-10*\s) -- (10.6,-10*\s);
+\draw[gray!60, dashed, line width=0.4pt] (-0.6,-20*\s) -- (10.6,-20*\s);
+\draw[gray!60, dashed, line width=0.4pt] (-0.6,-30*\s) -- (10.6,-30*\s);
+\node[font=\tiny, gray!70!black, anchor=east] at (-0.7,-10*\s) {-10\,\%};
+\node[font=\tiny, gray!70!black, anchor=east] at (-0.7,-20*\s) {-20\,\%};
+\node[font=\tiny, gray!70!black, anchor=east] at (-0.7,-30*\s) {-30\,\%};
+\draw[gray!80, line width=0.6pt] (-0.6,0) -- (10.6,0);
+\node[font=\tiny, gray!70!black, anchor=east] at (-0.7,0) {0\,\%};
+
+\draw[total] (0,0) rectangle (1.6,-21.4*\s);
+\node[vlabel, uandespurple, anchor=north] at (0.8,-21.4*\s-0.08) {-21,4\,\%};
+\node[clabel, anchor=north] at (0.8,-33*\s) {Brecha cruda\\(sin controles)};
+
+\draw[down] (2.1,-21.4*\s) rectangle (3.7,-27.5*\s);
+\node[text=white, font=\scriptsize\bfseries] at (2.9,-24.45*\s) {-6,1 pp};
+\node[clabel, alerta, anchor=north] at (2.9,-33*\s) {+ edad y\\educación};
+\draw[conn] (1.6,-21.4*\s) -- (2.1,-21.4*\s);
+
+\draw[total] (4.2,0) rectangle (5.8,-27.5*\s);
+\node[vlabel, uandespurple, anchor=north] at (5.0,-27.5*\s-0.08) {-27,5\,\%};
+\node[clabel, anchor=north] at (5.0,-33*\s) {Brecha ajustada\\(capital humano)};
+\draw[conn] (3.7,-27.5*\s) -- (4.2,-27.5*\s);
+
+\draw[up] (6.3,-27.5*\s) rectangle (7.9,-20.3*\s);
+\node[text=white, font=\scriptsize\bfseries] at (7.1,-23.9*\s) {+7,2 pp};
+\node[clabel, mejora, anchor=north] at (7.1,-33*\s) {+ horas\\trabajadas};
+\draw[conn] (5.8,-27.5*\s) -- (6.3,-27.5*\s);
+
+\draw[total] (8.4,0) rectangle (10.0,-20.3*\s);
+\node[vlabel, uandespurple, anchor=north] at (9.2,-20.3*\s-0.08) {-20,3\,\%};
+\node[clabel, anchor=north] at (9.2,-33*\s) {Brecha\\por hora};
+\draw[conn] (7.9,-20.3*\s) -- (8.4,-20.3*\s);
+
+\end{tikzpicture}%
+}
+\end{center}
+\footnotesize Al fijar edad y educación la brecha \textbf{se amplía} (rojo): las mujeres de la muestra tienen más educación terciaria (\PctTertiaryWomen\,\% vs.\ \PctTertiaryMen\,\%), así que la brecha cruda subestimaba la desventaja. Al fijar además horas trabajadas, se reduce (verde).
 \end{frame}
 
 % ---------------------------------------------------------------------------

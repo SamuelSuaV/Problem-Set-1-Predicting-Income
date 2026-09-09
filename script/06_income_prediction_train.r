@@ -5,7 +5,9 @@
 # Propósito del script: Reestimar los cinco modelos de 04_age_labor_income.r y
 #                       05_gender_gap.r solo sobre el split de entrenamiento de
 #                       la Sección 3 (subset 1-7), y comparar sus coeficientes
-#                       contra las versiones de muestra completa. Los modelos de
+#                       (con SE robustos a heterocedasticidad, HC1, en línea con
+#                       el vcov = "hetero" que 04/05 adoptaron) contra las
+#                       versiones de muestra completa. Los modelos de
 #                       entrenamiento ajustados se guardan para la predicción
 #                       fuera de muestra sobre el subset 8-10 en un script
 #                       posterior.
@@ -35,7 +37,8 @@ library(pacman)
 p_load(
     tidyverse,
     broom,
-    kableExtra)
+    kableExtra,
+    sandwich)
 
 
 ## 2. Cargar datos y construir las variables del modelo
@@ -127,10 +130,21 @@ saveRDS(train_models, "output/models/section3_train_models.rds")
 
 # a. Una fila por coeficiente, un par de columnas por muestra (train vs. full),
 # agrupada por modelo para que las dos familias de modelos no se mezclen.
+#
+# Los SE son robustos a heterocedasticidad (HC1), para quedar en el mismo
+# estándar que 04_age_labor_income.r y 05_gender_gap.r adoptaron (feols con
+# vcov = "hetero"). Se extraen con sandwich::vcovHC() sobre los mismos objetos
+# lm() en vez de reajustar con feols(): los coeficientes/residuos no cambian
+# con el tipo de SE, así que esto da la misma tabla que reajustar con feols
+# obtendría, pero conserva la clase lm() de train_models - de la que
+# 07_income_prediction_validation.r depende para hatvalues() en su atajo de
+# LOOCV vía leverage, y que fixest no garantiza soportar igual.
 compare_model <- function(model_train, model_full) {
     full_join(
-        tidy(model_train) |> select(term, estimate, std.error),
-        tidy(model_full)  |> select(term, estimate, std.error),
+        tidy(model_train, vcov. = vcovHC(model_train, type = "HC1")) |>
+            select(term, estimate, std.error),
+        tidy(model_full,  vcov. = vcovHC(model_full,  type = "HC1")) |>
+            select(term, estimate, std.error),
         by = "term",
         suffix = c("_train", "_full")
     )
@@ -168,13 +182,13 @@ comparison_table_tex <- comparison_table |>
         Model = model,
         Term = term,
         `Train (1-7)` = estimate_train,
-        `SE (train)` = std.error_train,
+        `Robust SE (train)` = std.error_train,
         `Full sample` = estimate_full,
-        `SE (full)` = std.error_full
+        `Robust SE (full)` = std.error_full
     ) |>
     kbl(
         format = "latex", booktabs = TRUE, digits = 4,
-        caption = "Section 3 training-split coefficients vs. full-sample coefficients",
+        caption = "Section 3 training-split coefficients vs. full-sample coefficients (HC1-robust SEs)",
         label = "section3_train_vs_full"
     ) |>
     kable_styling(latex_options = c("hold_position", "scale_down")) |>

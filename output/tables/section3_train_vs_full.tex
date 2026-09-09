@@ -1,19 +1,19 @@
 \begin{table}[H]
 \centering
-\caption{\label{tab:section3_train_vs_full}Section 3 training-split coefficients vs. full-sample coefficients}
+\caption{\label{tab:section3_train_vs_full}Section 3 training-split coefficients vs. full-sample coefficients (HC1-robust SEs)}
 \centering
 \resizebox{\ifdim\width>\linewidth\linewidth\else\width\fi}{!}{
 \begin{tabular}[t]{lllrrrr}
 \toprule
-Family & Model & Term & Train (1-7) & SE (train) & Full sample & SE (full)\\
+Family & Model & Term & Train (1-7) & Robust SE (train) & Full sample & Robust SE (full)\\
 \midrule
- &  & (Intercept) & 12.3143 & 0.0753 & 12.2882 & 0.0644\\
+ &  & (Intercept) & 12.3143 & 0.0753 & 12.2881 & 0.0645\\
 
  &  & age & 0.0849 & 0.0038 & 0.0868 & 0.0032\\
 
- & \multirow{-3}{*}{\raggedright\arraybackslash Unconditional} & age2 & -0.0010 & 0.0000 & -0.0011 & 0.0000\\
+ & \multirow{-3}{*}[\normalbaselineskip]{\raggedright\arraybackslash Unconditional} & age2 & -0.0010 & 0.0000 & -0.0011 & 0.0000\\
 
- &  & (Intercept) & 11.9632 & 0.0701 & 11.9621 & 0.0603\\
+ &  & (Intercept) & 11.9632 & 0.0701 & 11.9619 & 0.0603\\
 
  &  & age & 0.0709 & 0.0034 & 0.0734 & 0.0030\\
 
@@ -21,21 +21,21 @@ Family & Model & Term & Train (1-7) & SE (train) & Full sample & SE (full)\\
 
  &  & totalHoursWorked & 0.0133 & 0.0005 & 0.0127 & 0.0004\\
 
- &  & factor(relab)2 & 0.7595 & 0.0400 & 0.7398 & 0.0346\\
+ &  & factor(relab)2 & 0.7595 & 0.0400 & 0.7397 & 0.0346\\
 
- &  & factor(relab)3 & -0.6948 & 0.0404 & -0.6972 & 0.0349\\
+ &  & factor(relab)3 & -0.6948 & 0.0404 & -0.6973 & 0.0349\\
 
- &  & factor(relab)4 & -0.4809 & 0.0181 & -0.4922 & 0.0153\\
+ &  & factor(relab)4 & -0.4809 & 0.0181 & -0.4923 & 0.0153\\
 
- &  & factor(relab)5 & 0.2292 & 0.0450 & 0.2183 & 0.0373\\
+ &  & factor(relab)5 & 0.2292 & 0.0450 & 0.2182 & 0.0373\\
 
- &  & factor(relab)8 & -0.6210 & 0.8229 & -0.6451 & 0.8475\\
+ &  & factor(relab)8 & -0.6210 & 0.8229 & -0.6452 & 0.8475\\
 
-\multirow{-13}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Age-income profile (04)} & \multirow{-10}{*}{\raggedright\arraybackslash Conditional} & factor(relab)9 & -0.9724 & 0.3518 & -1.1202 & 0.2903\\
+\multirow{-13}{*}[\normalbaselineskip]{\raggedright\arraybackslash Age-income profile (04)} & \multirow{-10}{*}[\normalbaselineskip]{\raggedright\arraybackslash Conditional} & factor(relab)9 & -0.9724 & 0.3518 & -1.1203 & 0.2903\\
 \cmidrule{1-7}
  &  & (Intercept) & 13.9739 & 0.0119 & 13.9835 & 0.0100\\
 
- & \multirow{-2}{*}{\raggedright\arraybackslash Unconditional} & female & -0.2365 & 0.0173 & -0.2404 & 0.0146\\
+ & \multirow{-2}{*}[\normalbaselineskip]{\raggedright\arraybackslash Unconditional} & female & -0.2365 & 0.0173 & -0.2405 & 0.0146\\
 
  &  & (Intercept) & 11.3210 & 0.1178 & 11.3534 & 0.0960\\
 
@@ -53,7 +53,7 @@ Family & Model & Term & Train (1-7) & SE (train) & Full sample & SE (full)\\
 
  &  & factor(maxEducLevel)6 & 0.7547 & 0.0995 & 0.7211 & 0.0789\\
 
- & \multirow{-9}{*}{\raggedright\arraybackslash HK controls} & factor(maxEducLevel)7 & 1.3953 & 0.0994 & 1.3776 & 0.0788\\
+ & \multirow{-9}{*}[\normalbaselineskip]{\raggedright\arraybackslash HK controls} & factor(maxEducLevel)7 & 1.3953 & 0.0994 & 1.3776 & 0.0788\\
 
  &  & (Intercept) & 10.6684 & 0.1122 & 10.7469 & 0.0920\\
 
@@ -73,7 +73,7 @@ Family & Model & Term & Train (1-7) & SE (train) & Full sample & SE (full)\\
 
  &  & factor(maxEducLevel)7 & 1.4515 & 0.0934 & 1.3998 & 0.0746\\
 
-\multirow{-21}{*}[1\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Gender gap (05)} & \multirow{-10}{*}{\raggedright\arraybackslash HK + hours} & totalHoursWorked & 0.0176 & 0.0005 & 0.0168 & 0.0004\\
+\multirow{-21}{*}[\normalbaselineskip]{\raggedright\arraybackslash Gender gap (05)} & \multirow{-10}{*}[\normalbaselineskip]{\raggedright\arraybackslash HK + hours} & totalHoursWorked & 0.0176 & 0.0005 & 0.0168 & 0.0004\\
 \bottomrule
 \end{tabular}}
 \end{table}

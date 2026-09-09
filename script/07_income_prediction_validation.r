@@ -22,6 +22,7 @@
 # 8. Tabla de comparación de modelos y exportación a LaTeX
 # 9. Importancia de variables del mejor modelo (|beta| estandarizado) y gráfico
 # 10. RMSE de validación por subgrupo para el mejor modelo (chequeo de sesgo) y gráfico de barras
+# 11. Exportaciones listas para el deck de la Sección 3 (macros y tabla de diapositiva)
 
 ################################################################################
 
@@ -29,8 +30,10 @@
 #         entrenamiento guardados por 06_income_prediction_train.r
 # Output: Tabla de comparación de modelos (output/tables/section3_model_comparison.tex),
 #         figura de importancia de variables
-#         (output/figures/section3_variable_importance.png) y figura del
+#         (output/figures/section3_variable_importance.png), figura del
 #         RMSE de validación por subgrupo (output/figures/section3_subgroup_rmse.png)
+#         y las exportaciones para el deck (output/tables/section3_prediction_stats.tex,
+#         output/tables/section3_model_comparison_slide.tex)
 
 ################################################################################
 
@@ -453,3 +456,39 @@ subgroup_error_plot <- ggplot(
 ggsave("output/figures/section3_subgroup_rmse.png", subgroup_error_plot,
        width = 9, height = 7)
 subgroup_error_plot
+
+
+## 11. Exportaciones listas para el deck de la Sección 3
+# (presentation/income_prediction_slides.tex). Mismo patrón que
+# 04_age_labor_income.r: macros con los números clave y una tabla de
+# comparación sin envoltura de float, para que la diapositiva se regenere sola
+# cada vez que este script corre.
+
+fmt3 <- function(x, d = 4) formatC(x, format = "f", digits = d)
+
+second_model_name <- names(sort(validation_rmse))[2]
+
+stats_macros <- c(
+    paste0("\\newcommand{\\PredNModels}{", length(all_models), "}"),
+    paste0("\\newcommand{\\PredNTrain}{", format(nrow(train_data), big.mark = ","), "}"),
+    paste0("\\newcommand{\\PredNValidation}{", format(nrow(validation_data), big.mark = ","), "}"),
+    paste0("\\newcommand{\\PredBestModel}{", model_labels[[best_model_name]], "}"),
+    paste0("\\newcommand{\\PredBestValRMSE}{", fmt3(validation_rmse[[best_model_name]]), "}"),
+    paste0("\\newcommand{\\PredBestLOOCV}{", fmt3(loocv_rmse_vals[[best_model_name]]), "}"),
+    paste0("\\newcommand{\\PredBestAIC}{", format(round(fit_stats$AIC[fit_stats$model == best_model_name]), big.mark = ","), "}"),
+    paste0("\\newcommand{\\PredBestBIC}{", format(round(fit_stats$BIC[fit_stats$model == best_model_name]), big.mark = ","), "}"),
+    paste0("\\newcommand{\\PredSecondModel}{", model_labels[[second_model_name]], "}"),
+    paste0("\\newcommand{\\PredSecondValRMSE}{", fmt3(validation_rmse[[second_model_name]]), "}")
+)
+writeLines(stats_macros, "output/tables/section3_prediction_stats.tex")
+
+# Misma tabla de la sección 8, sin resizebox/float, con nombres de columna
+# cortos para caber en una diapositiva.
+comparison_slide_tex <- comparison_table |>
+    rename(`Val. RMSE` = `Validation RMSE`) |>
+    kbl(
+        format = "latex", booktabs = TRUE, digits = 3
+    ) |>
+    as.character()
+
+writeLines(comparison_slide_tex, "output/tables/section3_model_comparison_slide.tex")

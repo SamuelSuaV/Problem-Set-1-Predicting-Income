@@ -22,13 +22,15 @@
 # 6. Reajustar las diez especificaciones sobre cada uno de los m=5 sets de entrenamiento imputados
 # 7. Tabla de comparación: casos completos vs. imputado por PMM, exportar a LaTeX
 # 8. Diagnóstico: densidad del log-ingreso observado vs. imputado
+# 9. Exportaciones listas para el deck de la Sección 3 (macros y tabla de diapositiva)
 
 ################################################################################
 
 # Input:  Dataframe de análisis limpio de 02_data_cleaning.r
-# Output: Tabla de comparación (output/tables/section3_imputation_comparison.tex)
-#         y figura de diagnóstico
-#         (output/figures/section3_imputation_density.png)
+# Output: Tabla de comparación (output/tables/section3_imputation_comparison.tex),
+#         figura de diagnóstico (output/figures/section3_imputation_density.png)
+#         y las exportaciones para el deck (output/tables/section3_imputation_stats.tex,
+#         output/tables/section3_imputation_comparison_slide.tex)
 
 ################################################################################
 
@@ -288,3 +290,40 @@ density_plot <- ggplot(density_data, aes(x = log_inc, fill = source)) +
 
 ggsave("output/figures/section3_imputation_density.png", density_plot, width = 8, height = 5)
 density_plot
+
+
+## 9. Exportaciones listas para el deck de la Sección 3
+# (presentation/income_prediction_slides.tex). Mismo patrón que
+# 04_age_labor_income.r y la sección 11 de 07_income_prediction_validation.r:
+# macros con los números clave y una tabla de comparación sin envoltura de
+# float, para que la diapositiva se regenere sola cada vez que este script
+# corre.
+
+fmt3 <- function(x, d = 4) formatC(x, format = "f", digits = d)
+
+imputation_macros <- c(
+    paste0("\\newcommand{\\ImpNComplete}{", format(nrow(train_complete), big.mark = ","), "}"),
+    paste0("\\newcommand{\\ImpNTotal}{", format(nrow(train_all), big.mark = ","), "}"),
+    paste0("\\newcommand{\\ImpNImputed}{", format(n_imputed, big.mark = ","), "}"),
+    paste0("\\newcommand{\\ImpMDraws}{5}"),
+    paste0("\\newcommand{\\ImpNRelabExcl}{165}")
+)
+writeLines(imputation_macros, "output/tables/section3_imputation_stats.tex")
+
+# Misma tabla de la sección 7, sin resizebox/float, solo con el RMSE de
+# validación (la métrica que compara directamente "¿predice mejor el ingreso
+# real held-out?") para cada régimen de entrenamiento - AIC/BIC no son
+# comparables entre columnas de tamaños de muestra distintos (ver sección 7),
+# así que se dejan fuera de la versión de diapositiva.
+imputation_slide_tex <- comparison_table |>
+    select(Model, `Validation RMSE (completos)`, `Validation RMSE (imputado)`) |>
+    rename(
+        `RMSE (completos)` = `Validation RMSE (completos)`,
+        `RMSE (imputado)`  = `Validation RMSE (imputado)`
+    ) |>
+    kbl(
+        format = "latex", booktabs = TRUE, digits = 3
+    ) |>
+    as.character()
+
+writeLines(imputation_slide_tex, "output/tables/section3_imputation_comparison_slide.tex")

@@ -68,7 +68,7 @@ clean_data <- clean_data |>
 # errores estándar son robustos a heterocedasticidad, por la misma razón y tras
 # la misma deliberación que en 04_age_labor_income.r: hacer cluster (por hogar o
 # por ocupación) fue considerado y descartado, porque ninguno es el nivel al que
-# el experimento mental asigna el sexo.
+# el experimento asigna el sexo.
 
 # a. Brecha incondicional: la diferencia cruda en la media del log-ingreso entre
 # mujeres y hombres. Agrupa todos los canales (educación, horas, ocupación, ...).
